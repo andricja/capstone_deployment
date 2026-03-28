@@ -145,7 +145,7 @@ php composer.phar install --optimize-autoloader --no-dev
   PART 6: SERVER - CONFIGURE LARAVEL .ENV
 ════════════════════════════════════════
 
-cd ~/public_html/ferms/capstone_backend
+cd ~/domains/ferms.net/public_html/capstone_backend
 
 # Copy example env file
 cp .env.example .env
@@ -154,41 +154,76 @@ cp .env.example .env
 nano .env
 # OR use File Manager editor in hosting panel
 
-Update these values in .env:
+Update these values in .env (copy and paste this entire block):
 
 APP_NAME="FERMs"
 APP_ENV=production
+APP_KEY=base64:ud1dGlkiMaGhJwU6+o4Dqv2AxPRs6fzc+C1/cGxwVFc=
 APP_DEBUG=false
 APP_URL=https://ferms.net
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+APP_MAINTENANCE_DRIVER=file
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
 
 DB_CONNECTION=mysql
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=_________ferms_db        ← from Part 1
-DB_USERNAME=_________ferms_user      ← from Part 1
-DB_PASSWORD=your_generated_password  ← from Part 1
+DB_DATABASE=u798459799_ferms_db      ← REMOVE SPACE! (your actual DB name)
+DB_USERNAME=u798459799_ferms_user    ← REMOVE SPACE! (your actual username)
+DB_PASSWORD=D#m9QKRE>>dS              ← your actual password
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
 SESSION_PATH=/
 SESSION_DOMAIN=.ferms.net
 
-CACHE_STORE=database
-QUEUE_CONNECTION=database
+BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
 
+CACHE_STORE=database
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+# Email Configuration (configure later in admin panel)
+MAIL_MAILER=smtp
+MAIL_SCHEME=null
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@ferms.net"
+MAIL_FROM_NAME="FERMs"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+# Sanctum Configuration for API Authentication
 SANCTUM_STATEFUL_DOMAINS=ferms.net,www.ferms.net
 FRONTEND_URL=https://ferms.net
 
-# Email Configuration (Gmail example)
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=xxxx xxxx xxxx xxxx    ← Gmail App Password (NOT regular password)
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=your-email@gmail.com
-MAIL_FROM_NAME="FERMs"
+VITE_APP_NAME="FERMs"
+
+⚠️ CRITICAL: Make sure there are NO SPACES in:
+   - DB_DATABASE (should be u798459799_ferms_db NOT u798459799_ ferms_db)
+   - DB_USERNAME (should be u798459799_ferms_user NOT u798459799_ ferms_user)
 
 Save the file (Ctrl+X, then Y, then Enter in nano)
 
