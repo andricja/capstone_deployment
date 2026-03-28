@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Models;
+
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasApiTokens, HasFactory, Notifiable, TwoFactorAuthenticatable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role',
+        'archived_at',
+        'account_status',
+        'email_verification_code',
+        'email_code_expires_at',
+        'admin_rejection_reason',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'remember_token',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'two_factor_confirmed_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'email_code_expires_at' => 'datetime',
+        ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Role helpers                                                       */
+    /* ------------------------------------------------------------------ */
+
+    public function isRenter(): bool
+    {
+        return $this->role === 'renter';
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Relationships                                                      */
+    /* ------------------------------------------------------------------ */
+
+    /** Equipment listed by this owner */
+    public function equipment(): HasMany
+    {
+        return $this->hasMany(Equipment::class, 'owner_id');
+    }
+
+    /** Rental requests made by this renter */
+    public function rentalRequests(): HasMany
+    {
+        return $this->hasMany(RentalRequest::class, 'renter_id');
+    }
+
+    /** GCash settings for this owner */
+    public function gcashSetting(): HasOne
+    {
+        return $this->hasOne(GcashSetting::class, 'owner_id');
+    }
+
+    /** Message/inquiry requests submitted by this renter */
+    public function messageRequests(): HasMany
+    {
+        return $this->hasMany(MessageRequest::class, 'renter_id');
+    }
+}
