@@ -1,0 +1,68 @@
+name: Deploy FERMs to Production
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          echo "🚀 Starting deployment..."
+          
+          # Navigate to project directory
+          cd ~/public_html/ferms || cd ~/domains/ferms.net/public_html/ferms
+          
+          # Pull latest code
+          echo "📥 Pulling latest code from GitHub..."
+          git pull origin master
+          
+          # Backend deployment
+          echo "🔧 Deploying backend..."
+          cd capstone_backend
+          
+          # Install/update dependencies
+          composer install --optimize-autoloader --no-dev --no-interaction
+          
+          # Run migrations
+          php artisan migrate --force
+          
+          # Clear and cache config
+          php artisan config:clear
+          php artisan cache:clear
+          php artisan view:clear
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          
+          # Set permissions
+          chmod -R 775 storage bootstrap/cache
+          
+          # Frontend deployment
+          echo "🎨 Deploying frontend..."
+          cd ../frontend_capstone
+          
+          # Install dependencies
+          npm ci
+          
+          # Build production
+          npm run build
+          
+          # Copy build to public_html
+          echo "📦 Copying frontend build..."
+          cp -r dist/* ../../
+          
+          echo "✅ Deployment completed successfully!"

@@ -1,0 +1,763 @@
+================================================================================
+  DEPLOYMENT STEPS - FERMs (Farm Equipment Rental Management System)
+  Domain: ferms.net | Starting from SCRATCH
+================================================================================
+  Follow these steps ONE BY ONE. Do not skip ahead.
+================================================================================
+
+
+════════════════════════════════════════
+  PART 1: HOSTING - CREATE DATABASE
+════════════════════════════════════════
+
+1. Log in to your hosting control panel (cPanel/hPanel/Plesk)
+2. Navigate to "Databases" or "MySQL Databases"
+3. Click "Create a new MySQL database"
+4. Fill in:
+     Database name:  ferms_db
+     Username:       ferms_user
+     Password:       click "Generate" button (or create strong password)
+5. Click "Create"
+6. ⚠️ SAVE THESE — you'll need them later:
+     Full DB name:     _________ferms_db        (copy exact name shown)
+     Full username:    _________ferms_user      (copy exact name shown)
+     Password:         ________________         (the one you generated)
+     Host:             localhost (or 127.0.0.1)
+
+
+════════════════════════════════════════
+  PART 2: HOSTING - ENABLE SSH ACCESS
+════════════════════════════════════════
+
+1. In your hosting control panel, find "SSH Access" or "Terminal"
+2. Enable SSH access
+3. ⚠️ SAVE THESE — you'll need them:
+     SSH host:      ________________  (your server IP or ferms.net)
+     SSH port:      22 or 65002       (check your hosting docs)
+     SSH username:  ________________  (shown on the page)
+     SSH password:  your hosting login password
+
+
+════════════════════════════════════════
+  PART 3: LOCAL PC - GENERATE SSH KEY
+════════════════════════════════════════
+
+Step A — Open PowerShell on your PC and run:
+
+ssh-keygen -t rsa -b 4096 -C "ferms-deploy" -f "$HOME\.ssh\ferms_deploy"
+   (Just press Enter if asked anything — it will generate 2 files)
+
+Step B — Get the PUBLIC key:
+
+Get-Content "$HOME\.ssh\ferms_deploy.pub"
+
+   Copy the entire output (starts with ssh-rsa ...)
+
+Step C — Add public key to your hosting:
+   1. Go to hosting panel → SSH Access
+   2. Click "Add SSH key" or "Manage SSH keys"
+   3. Paste the public key you copied
+   4. Name it: ferms-deploy
+   5. Click Add / Save
+
+Step D — Get the PRIVATE key (save for later):
+
+Get-Content "$HOME\.ssh\ferms_deploy"
+
+   ⚠️ Copy the ENTIRE output including:
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      ...all the lines...
+      -----END OPENSSH PRIVATE KEY-----
+
+   Save it in Notepad — you'll need it if setting up GitHub Actions later.
+
+Step E — Test SSH connection:
+
+ssh -i "$HOME\.ssh\ferms_deploy" -p YOUR_SSH_PORT YOUR_SSH_USERNAME@YOUR_SSH_HOST
+
+   If it connects → type "exit" to disconnect. ✅ SSH is working!
+
+
+════════════════════════════════════════
+  PART 4: UPLOAD CODE TO SERVER
+════════════════════════════════════════
+
+OPTION A — Using SSH (Recommended):
+
+1. Connect to your server via SSH:
+
+ssh -i "$HOME\.ssh\ferms_deploy" -p YOUR_SSH_PORT YOUR_SSH_USERNAME@YOUR_SSH_HOST
+
+2. Navigate to web root:
+
+cd ~/public_html
+# OR
+cd ~/domains/ferms.net/public_html
+# (Check your hosting documentation for correct path)
+
+3. Create project directory:
+
+mkdir ferms
+cd ferms
+
+4. Upload your code:
+   - You can use SCP from your local PC:
+
+# On your LOCAL PC PowerShell:
+cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main"
+scp -i "$HOME\.ssh\ferms_deploy" -P YOUR_SSH_PORT -r capstone_backend YOUR_SSH_USERNAME@YOUR_SSH_HOST:~/public_html/ferms/
+scp -i "$HOME\.ssh\ferms_deploy" -P YOUR_SSH_PORT -r frontend_capstone YOUR_SSH_USERNAME@YOUR_SSH_HOST:~/public_html/ferms/
+
+OPTION B — Using File Manager (Easier for beginners):
+
+1. Compress your folders on local PC:
+   - Right-click capstone_backend → Send to → Compressed (zipped) folder
+   - Right-click frontend_capstone → Send to → Compressed (zipped) folder
+
+2. Upload via hosting File Manager:
+   - Go to hosting panel → File Manager
+   - Navigate to public_html/ferms/
+   - Upload both ZIP files
+   - Extract them on the server
+
+3. You should now have:
+   /public_html/ferms/capstone_backend/
+   /public_html/ferms/frontend_capstone/
+
+
+════════════════════════════════════════
+  PART 5: SERVER - INSTALL BACKEND DEPENDENCIES
+════════════════════════════════════════
+
+SSH into your server and run:
+
+cd ~/public_html/ferms/capstone_backend
+
+# Install Composer dependencies
+composer install --optimize-autoloader --no-dev
+
+# If composer is not installed, install it first:
+curl -sS https://getcomposer.org/installer | php
+php composer.phar install --optimize-autoloader --no-dev
+
+
+════════════════════════════════════════
+  PART 6: SERVER - CONFIGURE LARAVEL .ENV
+════════════════════════════════════════
+
+cd ~/public_html/ferms/capstone_backend
+
+# Copy example env file
+cp .env.example .env
+
+# Edit the .env file
+nano .env
+# OR use File Manager editor in hosting panel
+
+Update these values in .env:
+
+APP_NAME="FERMs"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://ferms.net
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=_________ferms_db        ← from Part 1
+DB_USERNAME=_________ferms_user      ← from Part 1
+DB_PASSWORD=your_generated_password  ← from Part 1
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_PATH=/
+SESSION_DOMAIN=.ferms.net
+
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+FILESYSTEM_DISK=local
+
+SANCTUM_STATEFUL_DOMAINS=ferms.net,www.ferms.net
+FRONTEND_URL=https://ferms.net
+
+# Email Configuration (Gmail example)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=xxxx xxxx xxxx xxxx    ← Gmail App Password (NOT regular password)
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=your-email@gmail.com
+MAIL_FROM_NAME="FERMs"
+
+Save the file (Ctrl+X, then Y, then Enter in nano)
+
+
+════════════════════════════════════════
+  PART 7: SERVER - INITIALIZE LARAVEL
+════════════════════════════════════════
+
+cd ~/public_html/ferms/capstone_backend
+
+# Generate application key
+php artisan key:generate
+
+# Run database migrations
+php artisan migrate --force
+
+# Seed database (optional - creates sample ads)
+php artisan db:seed --class=AdSeeder
+
+# Create storage symlink
+php artisan storage:link
+
+# Set permissions
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+# OR (if www-data doesn't work)
+chown -R $USER:$USER storage bootstrap/cache
+
+# Cache configuration
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+
+════════════════════════════════════════
+  PART 8: SERVER - CREATE ADMIN ACCOUNT
+════════════════════════════════════════
+
+cd ~/public_html/ferms/capstone_backend
+php artisan tinker
+
+Then paste this (replace with your details):
+
+$admin = new App\Models\User();
+$admin->name = 'Admin';
+$admin->email = 'admin@ferms.net';
+$admin->password = bcrypt('YourSecurePassword123');
+$admin->role = 'admin';
+$admin->account_status = 'approved';
+$admin->email_verified_at = now();
+$admin->save();
+exit
+
+⚠️ SAVE YOUR ADMIN CREDENTIALS:
+   Email: admin@ferms.net
+   Password: YourSecurePassword123
+
+
+════════════════════════════════════════
+  PART 9: SERVER - SET UP SCHEDULER (CRON)
+════════════════════════════════════════
+
+The system needs a cron job to auto-reject expired rental requests.
+
+1. In hosting panel, find "Cron Jobs"
+2. Add new cron job:
+     Frequency: Every minute (* * * * *)
+     Command:   cd ~/public_html/ferms/capstone_backend && php artisan schedule:run >> /dev/null 2>&1
+
+OR via SSH:
+
+crontab -e
+
+Add this line:
+* * * * * cd ~/public_html/ferms/capstone_backend && php artisan schedule:run >> /dev/null 2>&1
+
+Save and exit.
+
+
+════════════════════════════════════════
+  PART 10: LOCAL PC - BUILD REACT FRONTEND
+════════════════════════════════════════
+
+On your LOCAL PC:
+
+1. Open PowerShell:
+
+cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main\frontend_capstone"
+
+2. Create .env.production file:
+
+@"
+VITE_API_URL=https://ferms.net/api
+VITE_BASE_URL=https://ferms.net
+"@ | Out-File -FilePath .env.production -Encoding utf8
+
+3. Install dependencies and build:
+
+npm install
+npm run build
+
+This creates a dist/ folder with optimized files.
+
+
+════════════════════════════════════════
+  PART 11: SERVER - UPLOAD FRONTEND BUILD
+════════════════════════════════════════
+
+OPTION A — Using SCP (from local PC):
+
+cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main\frontend_capstone"
+scp -i "$HOME\.ssh\ferms_deploy" -P YOUR_SSH_PORT -r dist/* YOUR_SSH_USERNAME@YOUR_SSH_HOST:~/public_html/
+
+OPTION B — Using File Manager:
+
+1. Compress the dist/ folder on your PC
+2. Upload to hosting File Manager → public_html/
+3. Extract all files from dist/ directly into public_html/
+   (NOT in a dist/ subfolder)
+
+You should have in public_html/:
+  - index.html
+  - assets/
+  - vite.svg
+  - etc.
+
+
+════════════════════════════════════════
+  PART 12: SERVER - CONFIGURE WEB SERVER
+════════════════════════════════════════
+
+You need to configure your web server to:
+1. Serve React frontend from root (ferms.net)
+2. Serve Laravel API from /api (ferms.net/api)
+3. Serve storage files from /storage
+
+--- FOR APACHE ---
+
+Create .htaccess in public_html/:
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # API requests go to Laravel
+    RewriteRule ^api/(.*)$ capstone_backend/public/index.php [L,QSA]
+    
+    # Storage files
+    RewriteRule ^storage/(.*)$ capstone_backend/storage/app/public/$1 [L]
+    
+    # React Router - all other requests go to index.html
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !^/api
+    RewriteCond %{REQUEST_URI} !^/storage
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+--- FOR NGINX ---
+
+Create or edit nginx config:
+
+server {
+    listen 80;
+    server_name ferms.net www.ferms.net;
+    root /home/YOUR_USERNAME/public_html;
+    index index.html;
+
+    # Frontend (React)
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API (Laravel)
+    location /api {
+        alias /home/YOUR_USERNAME/public_html/ferms/capstone_backend/public;
+        try_files $uri $uri/ @api;
+        
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+    
+    location @api {
+        rewrite /api/(.*)$ /api/index.php?/$1 last;
+    }
+
+    # Storage files
+    location /storage {
+        alias /home/YOUR_USERNAME/public_html/ferms/capstone_backend/storage/app/public;
+    }
+}
+
+
+════════════════════════════════════════
+  PART 13: SSL CERTIFICATE (HTTPS)
+════════════════════════════════════════
+
+OPTION A — Using Hosting Panel:
+
+1. Go to hosting panel → Security → SSL
+2. Install SSL for ferms.net
+3. Enable "Force HTTPS"
+
+OPTION B — Using Let's Encrypt (SSH):
+
+sudo certbot --apache -d ferms.net -d www.ferms.net
+# OR for nginx:
+sudo certbot --nginx -d ferms.net -d www.ferms.net
+
+Follow prompts and select option 2 to redirect HTTP to HTTPS.
+
+
+════════════════════════════════════════
+  PART 14: TEST YOUR DEPLOYMENT
+════════════════════════════════════════
+
+1. Visit https://ferms.net
+   ✅ Should show FERMs homepage
+
+2. Try to register as a new user
+   ✅ Should receive verification email
+
+3. Log in as admin (credentials from Part 8)
+   ✅ Should access admin dashboard
+
+4. Test these features:
+   - Create equipment as owner
+   - Browse equipment as renter
+   - Submit rental request
+   - Upload payment proof
+   - Check email notifications
+   - View transportation fee on map
+
+5. Check logs if issues:
+   - Laravel: ~/public_html/ferms/capstone_backend/storage/logs/laravel.log
+   - Apache: /var/log/apache2/error.log
+   - Nginx: /var/log/nginx/error.log
+
+
+════════════════════════════════════════
+  PART 15: CONFIGURE SMTP SETTINGS
+════════════════════════════════════════
+
+1. Log in as admin at https://ferms.net
+2. Go to Settings → SMTP Settings
+3. Enter your email credentials:
+   - Host: smtp.gmail.com
+   - Port: 587
+   - Username: your-email@gmail.com
+   - Password: your-app-password (NOT regular password)
+   - Encryption: TLS
+   - From Address: your-email@gmail.com
+   - From Name: FERMs
+
+4. Click "Test Connection"
+5. If successful, click "Save"
+
+⚠️ For Gmail:
+   - Enable 2-Factor Authentication
+   - Generate App Password: https://myaccount.google.com/apppasswords
+   - Use the 16-character app password (not your regular password)
+
+
+════════════════════════════════════════
+  TROUBLESHOOTING
+════════════════════════════════════════
+
+Issue: 500 Internal Server Error
+Solution:
+  cd ~/public_html/ferms/capstone_backend
+  chmod -R 775 storage bootstrap/cache
+  php artisan config:clear
+  php artisan cache:clear
+  php artisan view:clear
+
+Issue: Storage files not loading (403)
+Solution:
+  cd ~/public_html/ferms/capstone_backend
+  php artisan storage:link
+  chmod -R 755 storage/app/public
+
+Issue: Database connection failed
+Solution:
+  - Check .env credentials match Part 1
+  - Test: mysql -u YOUR_DB_USER -p YOUR_DB_NAME
+  - Verify DB_HOST is 'localhost' or '127.0.0.1'
+
+Issue: CORS errors
+Solution:
+  - Update capstone_backend/config/cors.php
+  - Set 'allowed_origins' => ['https://ferms.net']
+  - Run: php artisan config:cache
+
+Issue: Email not sending
+Solution:
+  - For Gmail: Use App Password, not regular password
+  - Check MAIL_* settings in .env
+  - Run: php artisan config:clear
+  - Test in admin panel: Settings → SMTP Settings → Test
+
+Issue: Scheduler not running
+Solution:
+  - Verify cron job is set up (Part 9)
+  - Test manually: php artisan schedule:run
+  - Check cron logs: grep CRON /var/log/syslog
+
+
+════════════════════════════════════════
+  FUTURE UPDATES (After Initial Setup)
+════════════════════════════════════════
+
+BACKEND UPDATE:
+1. Edit code on local PC
+2. Upload changed files via SCP or File Manager
+3. SSH into server:
+   cd ~/public_html/ferms/capstone_backend
+   php artisan migrate --force
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+
+FRONTEND UPDATE:
+1. Edit code on local PC
+2. Run: npm run build
+3. Upload dist/ contents to public_html/
+
+DATABASE BACKUP:
+# Create backup
+mysqldump -u YOUR_DB_USER -p YOUR_DB_NAME > backup_$(date +%Y%m%d).sql
+
+# Restore backup
+mysql -u YOUR_DB_USER -p YOUR_DB_NAME < backup_20260328.sql
+
+
+════════════════════════════════════════
+  PART 16: SET UP GITHUB AUTO-DEPLOYMENT
+════════════════════════════════════════
+
+This enables automatic deployment when you push to GitHub!
+
+--- STEP 1: Create GitHub Repository ---
+
+1. Go to https://github.com and sign in (or create account)
+2. Click "+" → "New repository"
+3. Repository name: ferms-deployment
+4. Set to PRIVATE (recommended)
+5. Click "Create repository"
+
+--- STEP 2: Push Code to GitHub ---
+
+On your LOCAL PC, open PowerShell:
+
+cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main"
+
+# Create .gitignore file
+@"
+node_modules/
+vendor/
+.env
+.env.production
+frontend_capstone/dist/
+capstone_backend/storage/logs/
+capstone_backend/storage/framework/cache/
+capstone_backend/storage/framework/sessions/
+capstone_backend/storage/framework/views/
+*.log
+.DS_Store
+Thumbs.db
+"@ | Out-File -FilePath .gitignore -Encoding utf8
+
+# Initialize git and push
+git init
+git add .
+git commit -m "Initial commit - FERMs system"
+git branch -M master
+git remote add origin https://github.com/YOUR_USERNAME/ferms-deployment.git
+git push -u origin master
+
+(Replace YOUR_USERNAME with your actual GitHub username)
+
+--- STEP 3: Add GitHub Secrets ---
+
+These secrets allow GitHub to connect to your server securely.
+
+1. Go to your GitHub repository page
+2. Click "Settings" tab
+3. Left sidebar → "Secrets and variables" → "Actions"
+4. Click "New repository secret"
+5. Add these secrets ONE BY ONE:
+
+   Name: SSH_HOST
+   Value: (your server IP or ferms.net - from Part 2)
+   Click "Add secret"
+
+   Name: SSH_PORT
+   Value: 22 (or 65002 if using Hostinger)
+   Click "Add secret"
+
+   Name: SSH_USERNAME
+   Value: (your SSH username - from Part 2)
+   Click "Add secret"
+
+   Name: SSH_PRIVATE_KEY
+   Value: (paste the ENTIRE private key from Part 3, Step D)
+          Include -----BEGIN OPENSSH PRIVATE KEY----- and -----END OPENSSH PRIVATE KEY-----
+   Click "Add secret"
+
+--- STEP 4: Clone Repository on Server ---
+
+SSH into your server:
+
+ssh -i "$HOME\.ssh\ferms_deploy" -p YOUR_SSH_PORT YOUR_SSH_USERNAME@YOUR_SSH_HOST
+
+Then run:
+
+# Navigate to web directory
+cd ~/public_html
+# OR
+cd ~/domains/ferms.net/public_html
+
+# Remove the ferms folder if it exists (backup first if needed)
+rm -rf ferms
+
+# Clone from GitHub
+git clone https://github.com/YOUR_USERNAME/ferms-deployment.git ferms
+cd ferms
+
+# Now continue with Part 5-15 (install dependencies, configure, etc.)
+
+--- STEP 5: Test Auto-Deployment ---
+
+After completing all setup (Parts 1-15), test auto-deployment:
+
+1. On your LOCAL PC, make a small change:
+   
+   cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main"
+   echo "# FERMs System" >> README.md
+   git add .
+   git commit -m "Test auto-deployment"
+   git push
+
+2. Go to GitHub → Your repository → "Actions" tab
+3. You should see the deployment running
+4. Wait for it to complete (green checkmark ✅)
+5. Visit https://ferms.net to verify changes
+
+--- STEP 6: Future Updates (AUTO-DEPLOY) ---
+
+From now on, any time you want to update the live site:
+
+1. Edit code on your LOCAL PC
+2. Open PowerShell:
+   
+   cd "C:\Users\seanj\Downloads\capstoneclone\capstone-main"
+   git add .
+   git commit -m "Description of changes"
+   git push
+
+3. ✅ GitHub Actions automatically:
+   - Connects to your server via SSH
+   - Pulls latest code
+   - Installs backend dependencies
+   - Runs database migrations
+   - Clears and caches Laravel config
+   - Builds React frontend
+   - Copies frontend to public_html
+   - Sets correct permissions
+
+4. Check deployment status:
+   - GitHub → Repository → Actions tab
+   - Green checkmark = successful
+   - Red X = failed (click to see error logs)
+
+--- TROUBLESHOOTING AUTO-DEPLOY ---
+
+Issue: Deployment fails with "Permission denied"
+Solution:
+  - Check SSH_PRIVATE_KEY secret is complete (including header/footer)
+  - Verify SSH key is added to server (Part 3, Step C)
+  - Test SSH manually: ssh -i "$HOME\.ssh\ferms_deploy" -p PORT USER@HOST
+
+Issue: Deployment fails at "composer install"
+Solution:
+  - SSH into server
+  - cd ~/public_html/ferms/capstone_backend
+  - Run: composer install --optimize-autoloader --no-dev
+  - Check for errors
+
+Issue: Deployment fails at "npm run build"
+Solution:
+  - Check Node.js is installed on server
+  - SSH into server: node --version (should be 18+)
+  - If not installed: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install nodejs
+
+Issue: Frontend not updating after deployment
+Solution:
+  - Check .github/workflows/deploy.yml has correct paths
+  - Verify frontend build is copying to correct location
+  - Clear browser cache (Ctrl+Shift+R)
+
+--- DEPLOYMENT WORKFLOW DIAGRAM ---
+
+  LOCAL PC                    GITHUB                    SERVER
+  --------                    ------                    ------
+  
+  1. Edit code
+  2. git add .
+  3. git commit
+  4. git push      ──────►    Receives push
+                              
+                              5. Triggers workflow
+                              6. Runs deploy.yml
+                              
+                              7. SSH to server  ──────►  8. Pulls code
+                                                         9. Installs deps
+                                                         10. Runs migrations
+                                                         11. Builds frontend
+                                                         12. Caches config
+                                                         
+                              13. Reports success ◄────  14. Deployment done
+  
+  15. Visit ferms.net to see changes ✅
+
+
+================================================================================
+  PROGRESS CHECKLIST
+================================================================================
+
+  Part 1  - Create MySQL Database          [ ]
+  Part 2  - Enable SSH Access              [ ]
+  Part 3  - Generate SSH Key               [ ]
+  Part 4  - Upload Code to Server          [ ]
+  Part 5  - Install Backend Dependencies   [ ]
+  Part 6  - Configure Laravel .env         [ ]
+  Part 7  - Initialize Laravel             [ ]
+  Part 8  - Create Admin Account           [ ]
+  Part 9  - Set Up Scheduler (Cron)        [ ]
+  Part 10 - Build React Frontend           [ ]
+  Part 11 - Upload Frontend Build          [ ]
+  Part 12 - Configure Web Server           [ ]
+  Part 13 - SSL Certificate                [ ]
+  Part 14 - Test Deployment                [ ]
+  Part 15 - Configure SMTP Settings        [ ]
+  Part 16 - Set Up GitHub Auto-Deployment  [ ]
+
+================================================================================
+  SYSTEM INFORMATION
+================================================================================
+
+  System Name:    FERMs (Farm Equipment Rental Management System)
+  Domain:         ferms.net
+  Coverage Area:  Oriental Mindoro, Philippines
+  
+  Tech Stack:
+    - Frontend:   React + Vite
+    - Backend:    Laravel 11 + PHP 8.2
+    - Database:   MySQL 8.0
+    - Maps:       Leaflet + OpenStreetMap
+  
+  Key Features:
+    - Equipment rental management
+    - Location-based transportation fees
+    - GCash payment integration
+    - Email notifications
+    - Auto-reject expired rentals
+    - Admin dashboard
+    - Advertisement management
+
+================================================================================
