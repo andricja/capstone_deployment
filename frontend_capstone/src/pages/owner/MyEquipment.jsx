@@ -1,3 +1,6 @@
+// MyEquipment - Owner Equipment Management with Hectare Pricing - Updated 2026-04-11
+// Force reload timestamp: 1712851200
+console.log('MyEquipment module loaded - v2.0');
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../lib/api';
@@ -21,7 +24,7 @@ export default function MyEquipment() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     name: '', category: 'tractor', description: '', 
-    price_per_sqm: '', coverage_rate: '',
+    price_per_hectare: '',
     municipality: '', barangay: '', province: 'Oriental Mindoro',
     latitude: '', longitude: '', image: null,
     transportation_fee_per_km: '15',
@@ -48,7 +51,8 @@ export default function MyEquipment() {
 
   useEffect(() => {
     if (form.municipality) {
-      api.get(`/addresses/municipalities/${encodeURIComponent(form.municipality)}/barangays`)
+      const url = `/addresses/municipalities/${encodeURIComponent(form.municipality)}/barangays`;
+      api.get(url)
         .then(res => setBarangays(res.data.barangays || []))
         .catch(err => {
           console.error('Failed to load barangays:', err);
@@ -63,10 +67,9 @@ export default function MyEquipment() {
     setForm(prev => ({ ...prev, barangay: selectedBarangay }));
     
     if (form.municipality && selectedBarangay) {
-      console.log('Fetching coordinates for:', form.municipality, selectedBarangay);
-      api.get(`/addresses/municipalities/${encodeURIComponent(form.municipality)}/barangays/${encodeURIComponent(selectedBarangay)}/coordinates`)
+      const url = `/addresses/municipalities/${encodeURIComponent(form.municipality)}/barangays/${encodeURIComponent(selectedBarangay)}/coordinates`;
+      api.get(url)
         .then(res => {
-          console.log('API Response:', res.data);
           if (res.data.latitude && res.data.longitude) {
             setForm(prev => ({
               ...prev,
@@ -83,7 +86,7 @@ export default function MyEquipment() {
     setEditing(null);
     setForm({ 
       name: '', category: 'tractor', description: '', 
-      price_per_sqm: '', coverage_rate: '',
+      price_per_hectare: '',
       municipality: '', barangay: '', province: 'Oriental Mindoro',
       latitude: '', longitude: '', image: null,
       transportation_fee_per_km: '15',
@@ -98,8 +101,7 @@ export default function MyEquipment() {
       name: eq.name, 
       category: eq.category, 
       description: eq.description || '',
-      price_per_sqm: eq.price_per_sqm || '',
-      coverage_rate: eq.coverage_rate || '',
+      price_per_hectare: eq.price_per_hectare || '',
       municipality: eq.municipality || '', 
       barangay: eq.barangay || '',
       province: eq.province || 'Oriental Mindoro',
@@ -122,7 +124,8 @@ export default function MyEquipment() {
 
       if (editing) {
         fd.append('_method', 'PUT');
-        await api.post(`/owner/equipment/${editing.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const url = `/owner/equipment/${editing.id}`;
+        await api.post(url, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success('Equipment updated.');
       } else {
         await api.post('/owner/equipment', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -140,7 +143,8 @@ export default function MyEquipment() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this equipment?')) return;
     try {
-      await api.delete(`/owner/equipment/${id}`);
+      const url = `/owner/equipment/${id}`;
+      await api.delete(url);
       toast.success('Equipment deleted.');
       fetchEquipment(page);
     } catch (err) {
@@ -151,7 +155,8 @@ export default function MyEquipment() {
   const handleArchive = async (id) => {
     if (!confirm('Archive this equipment?')) return;
     try {
-      await api.patch(`/owner/archived/equipment/${id}`);
+      const url = `/owner/archived/equipment/${id}`;
+      await api.patch(url);
       toast.success('Equipment archived.');
       fetchEquipment(page);
     } catch (err) {
@@ -161,7 +166,8 @@ export default function MyEquipment() {
 
   const toggleStatus = async (id, action) => {
     try {
-      await api.patch(`/owner/equipment/${id}/${action}`);
+      const url = `/owner/equipment/${id}/${action}`;
+      await api.patch(url);
       toast.success('Equipment status updated.');
       fetchEquipment(page);
     } catch (err) {
@@ -194,15 +200,15 @@ export default function MyEquipment() {
                   {eq.image ? (
                     <img src={`/storage/${eq.image}`} alt={eq.name} className="w-20 h-20 rounded-lg object-cover" />
                   ) : (
-                    <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl text-gray-300"></div>
+                    <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl text-gray-300">📦</div>
                   )}
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">{eq.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
                       {eq.category} • {eq.barangay ? `Brgy. ${eq.barangay}, ${eq.municipality}` : eq.location || eq.municipality}
                     </p>
-                    <p className="text-sm font-medium text-green-700">
-                      ₱{parseFloat(eq.price_per_sqm || 0).toLocaleString()}/sqm • {parseFloat(eq.coverage_rate || 0).toLocaleString()} sqm/hr
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                      ₱{(parseFloat(eq.price_per_hectare || 0)).toLocaleString()}/hectare
                     </p>
                   </div>
                 </div>
@@ -278,25 +284,22 @@ export default function MyEquipment() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per sqm (₱)</label>
-                  <input type="number" min="0" step="0.01" required value={form.price_per_sqm}
-                    onChange={(e) => setForm({ ...form, price_per_sqm: e.target.value })}
-                    placeholder="e.g. 0.50"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coverage Rate (sqm/hr)</label>
-                  <input type="number" min="100" step="1" required value={form.coverage_rate}
-                    onChange={(e) => setForm({ ...form, coverage_rate: e.target.value })}
-                    placeholder="e.g. 1500"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per hectare (₱)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  required 
+                  value={form.price_per_hectare}
+                  onChange={(e) => setForm({ ...form, price_per_hectare: e.target.value })}
+                  placeholder="e.g. 5000"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" 
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Enter price per hectare
+                </p>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-                Coverage rate: How many square meters your equipment can cover per hour
-              </p>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>

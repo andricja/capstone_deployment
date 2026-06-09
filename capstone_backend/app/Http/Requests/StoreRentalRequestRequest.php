@@ -16,7 +16,7 @@ class StoreRentalRequestRequest extends FormRequest
         return [
             'equipment_id'    => ['required', 'exists:equipment,id'],
             'contact_number'  => ['required', 'string', 'max:20'],
-            'farm_size_sqm'   => ['required', 'numeric', 'min:100'],
+            'farm_size_sqm'   => ['required', 'numeric', 'min:2500'], // Minimum 0.25 hectares
             'start_date'      => ['required', 'date', 'after_or_equal:today'],
             'delivery_address'=> ['nullable', 'string', 'max:500'], // Optional, will be auto-generated
             'sitio_street'    => ['required', 'string', 'max:255'],

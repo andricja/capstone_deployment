@@ -1,0 +1,37 @@
+URGENT FIX NEEDED FOR MyEquipment.jsx
+
+The file is broken. Please do this manually:
+
+1. Open frontend_capstone/src/pages/owner/MyEquipment.jsx in VS Code
+
+2. Find line 24 (around there) - the form state:
+   CHANGE FROM:
+   price_per_sqm: '', coverage_rate: '',
+   
+   TO:
+   price_per_sqm: '',
+
+3. Find line 76 (around there) - in openEdit function:
+   DELETE THIS LINE:
+   coverage_rate: eq.coverage_rate || '',
+
+4. Find line 178 (around there) - equipment listing display:
+   CHANGE FROM:
+   ₱{(parseFloat(eq.price_per_sqm || 0) * 10000).toLocaleString()}/hectare • {parseFloat(eq.coverage_rate || 0).toLocaleString()} sqm/hr
+   
+   TO:
+   ₱{(parseFloat(eq.price_per_sqm || 0) * 10000).toLocaleString()}/hectare
+
+5. Find the modal form (around line 250-300) - look for the grid with 2 fields:
+   DELETE the entire Coverage Rate field section (the second <div> inside the grid)
+   
+   KEEP ONLY:
+   <div>
+     <label>Price per hectare (₱)</label>
+     <input ... />
+     <p>Enter price per hectare...</p>
+   </div>
+
+6. Save the file
+
+The dev server should auto-reload and the error will be fixed.

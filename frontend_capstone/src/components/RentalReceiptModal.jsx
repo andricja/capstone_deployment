@@ -110,7 +110,7 @@ export default function RentalReceiptModal({ rental, onClose }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">Rental Details</p>
             <div className="flex justify-between">
               <span className="text-gray-500">Farm Size</span>
-              <span className="font-medium text-gray-900">{parseFloat(rental.farm_size_sqm || 0).toLocaleString()} sqm</span>
+              <span className="font-medium text-gray-900">{(parseFloat(rental.farm_size_sqm || 0) / 10000).toFixed(2)} hectares</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Est. Hours</span>

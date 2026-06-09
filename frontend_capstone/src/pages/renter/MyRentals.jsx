@@ -146,7 +146,7 @@ export default function MyRentals() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><span className="text-gray-500 dark:text-gray-400">Farm Size:</span> <span className="font-medium">{parseFloat(r.farm_size_sqm || 0).toLocaleString()} sqm</span></div>
+                <div><span className="text-gray-500 dark:text-gray-400">Farm Size:</span> <span className="font-medium">{(parseFloat(r.farm_size_sqm || 0) / 10000).toFixed(2)} hectares</span></div>
                 <div><span className="text-gray-500 dark:text-gray-400">Est. Hours:</span> <span className="font-medium">{parseFloat(r.estimated_hours || 0)} hrs</span></div>
                 <div><span className="text-gray-500 dark:text-gray-400">Days:</span> <span className="font-medium">{r.rental_days}</span></div>
                 <div><span className="text-gray-500 dark:text-gray-400">Period:</span> <span className="font-medium">{fmtDate(r.start_date)}{r.rental_days > 1 ? ` — ${fmtDate(r.end_date)}` : ''}</span></div>
@@ -257,7 +257,7 @@ export default function MyRentals() {
                       <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{r.equipment?.category}</p>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium">{parseFloat(r.farm_size_sqm || 0).toLocaleString()} sqm</p>
+                      <p className="font-medium">{(parseFloat(r.farm_size_sqm || 0) / 10000).toFixed(2)} ha</p>
                       <p className="text-xs text-gray-500">{parseFloat(r.estimated_hours || 0)} hrs • {r.rental_days}d</p>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">

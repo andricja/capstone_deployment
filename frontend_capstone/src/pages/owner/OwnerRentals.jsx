@@ -181,7 +181,7 @@ export default function OwnerRentals() {
                     <Ruler className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
                     <div>
                       <span className="text-gray-500 dark:text-gray-400 block text-xs">Farm Size</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{parseFloat(r.farm_size_sqm || 0).toLocaleString()} sqm</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{(parseFloat(r.farm_size_sqm || 0) / 10000).toFixed(2)} hectares</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-1.5">
@@ -350,7 +350,7 @@ export default function OwnerRentals() {
                       <p className="text-xs text-gray-500 dark:text-gray-400">{r.contact_number}</p>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium dark:text-gray-200">{parseFloat(r.farm_size_sqm || 0).toLocaleString()} sqm</p>
+                      <p className="font-medium dark:text-gray-200">{(parseFloat(r.farm_size_sqm || 0) / 10000).toFixed(2)} ha</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{parseFloat(r.estimated_hours || 0)} hrs • {r.rental_days}d</p>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -461,7 +461,7 @@ export default function OwnerRentals() {
                     <Ruler className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
                     <div>
                       <span className="text-gray-500 dark:text-gray-400 block text-xs">Farm Size</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{parseFloat(selectedRow.farm_size_sqm || 0).toLocaleString()} sqm</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{(parseFloat(selectedRow.farm_size_sqm || 0) / 10000).toFixed(2)} hectares</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-1.5">

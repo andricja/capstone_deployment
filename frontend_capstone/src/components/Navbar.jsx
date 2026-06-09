@@ -5,10 +5,10 @@ import {
   Menu, X, Tractor, LogOut,
   Home, Search, ClipboardList, Mail,
   Package, ClipboardCheck, Settings, Users, BarChart3,
-  CheckCircle, UserCheck, Bell, Megaphone,
-  Sun, Moon, ChevronRight,
+  CheckCircle, UserCheck, Megaphone,
+  Sun, Moon, ChevronRight, User,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const HEADER_H = 'h-14'; // shared height token
 const HEADER_PX = '56px';
@@ -19,6 +19,20 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -74,15 +88,50 @@ export default function Sidebar() {
           </button>
 
           {user && (
-            <>
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">{user.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 dark:from-gray-600 dark:to-gray-700 text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                {user.name?.charAt(0).toUpperCase()}
-              </div>
-            </>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">{user.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 dark:from-gray-600 dark:to-gray-700 text-white flex items-center justify-center text-sm font-bold shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+                  {user.name?.charAt(0).toUpperCase()}
+                </div>
+              </button>
+
+              {/* Dropdown Menu */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      navigate(`/${user.role}/settings`);
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    Profile Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -128,7 +177,7 @@ export default function Sidebar() {
               Logout
             </button>
           )}
-          <p className="text-[10px] text-green-500 dark:text-gray-500 text-center mt-3">FERMs v1.0.0</p>
+          <p className="text-[10px] text-green-500 dark:text-gray-500 text-center mt-3">FERMs v1.2.1</p>
         </div>
       </aside>
     </>

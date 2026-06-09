@@ -18,8 +18,7 @@ class Equipment extends Model
         'name',
         'category',
         'description',
-        'price_per_sqm',
-        'coverage_rate',
+        'price_per_hectare',
         'transportation_fee',
         'transportation_fee_per_km',
         'free_distance_km',
@@ -40,8 +39,7 @@ class Equipment extends Model
     protected function casts(): array
     {
         return [
-            'price_per_sqm' => 'decimal:2',
-            'coverage_rate' => 'decimal:2',
+            'price_per_hectare' => 'decimal:2',
             'transportation_fee' => 'decimal:2',
             'transportation_fee_per_km' => 'decimal:2',
             'free_distance_km' => 'decimal:2',

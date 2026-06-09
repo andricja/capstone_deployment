@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
@@ -36,7 +36,7 @@ export default function BrowseEquipment() {
   // Rental modal
   const [selected, setSelected] = useState(null);
   const [rentalForm, setRentalForm] = useState({
-    contact_number: '', farm_size_sqm: '', start_date: '',
+    contact_number: '', farm_size_hectares: '', start_date: '',
     sitio_street: '', barangay: '', municipality: '', province: 'Oriental Mindoro',
     latitude: '', longitude: '',
     payment_method: 'downpayment',
@@ -52,18 +52,16 @@ export default function BrowseEquipment() {
 
   // Auto-calculated cost breakdown (mirrors backend logic)
   const costBreakdown = useMemo(() => {
-    if (!selected || !rentalForm.farm_size_sqm || parseFloat(rentalForm.farm_size_sqm) < 100) return null;
-    const farmSize = parseFloat(rentalForm.farm_size_sqm);
-    const pricePerSqm = parseFloat(selected.price_per_sqm || 0);
-    const coverageRate = parseFloat(selected.coverage_rate || 1500);
-    const estimatedHours = Math.max(Math.ceil((farmSize / coverageRate) * 10) / 10, 1);
-    const rentalDays = Math.max(Math.ceil(estimatedHours / 8), 1);
-    const baseCost = pricePerSqm * farmSize;
+    if (!selected || !rentalForm.farm_size_hectares || parseFloat(rentalForm.farm_size_hectares) < 0.25) return null;
+    const farmSizeHectares = parseFloat(rentalForm.farm_size_hectares);
+    const pricePerHectare = parseFloat(selected.price_per_hectare || 0);
+    const baseCost = pricePerHectare * farmSizeHectares;
     const deliveryFee = calculatedTransportationFee; // Use the calculated fee from DualLocationPicker
-    const serviceCharge = Math.round(baseCost * 0.05 * 100) / 100;
-    const totalCost = baseCost + deliveryFee + serviceCharge;
-    return { farmSize, estimatedHours, rentalDays, baseCost, deliveryFee, serviceCharge, totalCost, pricePerSqm, coverageRate };
-  }, [selected, rentalForm.farm_size_sqm, calculatedTransportationFee]);
+    const totalCost = baseCost + deliveryFee;
+    const estimatedHours = Math.max(Math.ceil(farmSizeHectares * 6.7 * 10) / 10, 1); // Rough estimate: 6.7 hours per hectare
+    const rentalDays = Math.max(Math.ceil(estimatedHours / 8), 1);
+    return { farmSizeHectares, estimatedHours, rentalDays, baseCost, deliveryFee, totalCost, pricePerHectare };
+  }, [selected, rentalForm.farm_size_hectares, calculatedTransportationFee]);
 
   const fetchEquipment = () => {
     setLoading(true);
@@ -109,7 +107,7 @@ export default function BrowseEquipment() {
     setSelected(eq);
     setRentalForm({ 
       contact_number: '', 
-      farm_size_sqm: '', 
+      farm_size_hectares: '', 
       start_date: '', 
       sitio_street: '', 
       barangay: '', 
@@ -132,7 +130,9 @@ export default function BrowseEquipment() {
       const formData = new FormData();
       formData.append('equipment_id', selected.id);
       formData.append('contact_number', rentalForm.contact_number);
-      formData.append('farm_size_sqm', parseFloat(rentalForm.farm_size_sqm));
+      // Convert hectares to sqm for backend
+      const farmSizeSqm = parseFloat(rentalForm.farm_size_hectares) * 10000;
+      formData.append('farm_size_sqm', farmSizeSqm);
       formData.append('start_date', rentalForm.start_date);
       
       // Structured address fields
@@ -181,7 +181,7 @@ export default function BrowseEquipment() {
         case 'name': va = a.name || ''; vb = b.name || ''; break;
         case 'category': va = a.category || ''; vb = b.category || ''; break;
         case 'location': va = a.location || ''; vb = b.location || ''; break;
-        case 'daily_rate': va = parseFloat(a.price_per_sqm || 0); vb = parseFloat(b.price_per_sqm || 0); break;
+        case 'daily_rate': va = parseFloat(a.price_per_hectare || 0); vb = parseFloat(b.price_per_hectare || 0); break;
         case 'status': va = a.status || ''; vb = b.status || ''; break;
         default: va = a.id; vb = b.id;
       }
@@ -261,8 +261,8 @@ export default function BrowseEquipment() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{eq.description || 'No description provided.'}</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg font-bold text-green-700">₱{parseFloat(eq.price_per_sqm || 0).toLocaleString()}<span className="text-xs font-normal text-gray-500">/sqm</span></p>
-                    <p className="text-xs text-gray-500">{parseFloat(eq.coverage_rate || 0).toLocaleString()} sqm/hr coverage</p>
+                    <p className="text-lg font-bold text-green-700">₱{parseFloat(eq.price_per_hectare || 0).toLocaleString()}<span className="text-xs font-normal text-gray-500">/hectare</span></p>
+                    
                   </div>
                   {eq.status === 'available' ? (
                     <button onClick={() => openRentalModal(eq)}
@@ -346,8 +346,8 @@ export default function BrowseEquipment() {
                     <td className="px-4 py-3 capitalize">{eq.category}</td>
                     <td className="px-4 py-3">{eq.location}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-bold text-green-700">₱{parseFloat(eq.price_per_sqm || 0).toLocaleString()}/sqm</p>
-                      <p className="text-xs text-gray-400">{parseFloat(eq.coverage_rate || 0).toLocaleString()} sqm/hr</p>
+                      <p className="font-bold text-green-700">₱{parseFloat(eq.price_per_hectare || 0).toLocaleString()}/ha</p>
+                      
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={eq.status} /></td>
                     <td className="px-4 py-3">
@@ -394,20 +394,20 @@ export default function BrowseEquipment() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Request Rental</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {selected.name} <span className="capitalize">({selected.category})</span> — ₱{parseFloat(selected.price_per_sqm || 0).toLocaleString()}/sqm • {parseFloat(selected.coverage_rate || 0).toLocaleString()} sqm/hr
+              {selected.name} <span className="capitalize">({selected.category})</span> — ₱{parseFloat(selected.price_per_hectare || 0).toLocaleString()}/hectare
             </p>
 
             <form onSubmit={submitRental} className="space-y-3">
               {/* Farm Size — main input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Ruler className="inline w-4 h-4 mr-1 -mt-0.5" />Farm Size (sqm)
+                  <Ruler className="inline w-4 h-4 mr-1 -mt-0.5" />Farm Size (hectares)
                 </label>
-                <input type="number" min="100" step="1" required value={rentalForm.farm_size_sqm}
-                  onChange={(e) => setRentalForm({ ...rentalForm, farm_size_sqm: e.target.value })}
-                  placeholder="e.g. 5000"
+                <input type="number" min="0.25" step="0.01" required value={rentalForm.farm_size_hectares}
+                  onChange={(e) => setRentalForm({ ...rentalForm, farm_size_hectares: e.target.value })}
+                  placeholder="e.g. 0.5"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                <p className="text-xs text-gray-400 mt-1">Minimum 100 sqm. Coverage rate: {(selected.coverage_rate || 1500).toLocaleString()} sqm/hr</p>
+                <p className="text-xs text-gray-400 mt-1">Minimum 0.25 hectares (2,500 sqm) - one-fourth of a hectare.</p>
               </div>
 
               {/* Auto-calculated estimates — shown when farm_size_sqm is valid */}
@@ -661,16 +661,12 @@ export default function BrowseEquipment() {
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-sm space-y-1">
                   <p className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Cost Breakdown</p>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Base Cost (₱{fmt(costBreakdown.pricePerSqm)}/sqm × {costBreakdown.farmSize.toLocaleString()} sqm)</span>
+                    <span className="text-gray-600">Base Cost (₱{fmt(costBreakdown.pricePerHectare)}/hectare × {costBreakdown.farmSizeHectares.toLocaleString()} hectares)</span>
                     <span>₱{fmt(costBreakdown.baseCost)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600"><Truck className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />Transportation Fee</span>
                     <span>₱{fmt(costBreakdown.deliveryFee)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Service Charge (5%)</span>
-                    <span>₱{fmt(costBreakdown.serviceCharge)}</span>
                   </div>
                   <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-700 text-base">
                     <span>Estimated Total</span>

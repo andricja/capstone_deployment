@@ -73,7 +73,7 @@ class RentalRequestController extends Controller
     {
         $query = $request->user()
             ->rentalRequests()
-            ->with('equipment:id,name,category,image,price_per_sqm,coverage_rate,transportation_fee,location,status', 'equipment.owner:id,name,email')
+            ->with('equipment:id,name,category,image,price_per_hectare,transportation_fee,location,status', 'equipment.owner:id,name,email')
             ->whereNull('archived_at')
             ->latest();
 
@@ -102,12 +102,11 @@ class RentalRequestController extends Controller
         }
 
         $farmSizeSqm = (float) $request->input('farm_size_sqm');
+        $farmSizeHectares = $farmSizeSqm / 10000; // Convert sqm to hectares for calculation
 
-        // ── Use equipment's coverage rate (set by owner) ──
-        // Owner sets their own coverage rate based on equipment capability
-        $coverageRate = $equipment->coverage_rate; // sqm per hour
-        
-        $estimatedHours = ceil(($farmSizeSqm / $coverageRate) * 10) / 10; // round up to 1 decimal
+        // ── Calculate estimated hours and rental days ──
+        // Rough estimate: 6.7 hours per hectare
+        $estimatedHours = ceil(($farmSizeHectares * 6.7) * 10) / 10; // round up to 1 decimal
         $estimatedHours = max($estimatedHours, 1); // minimum 1 hour
         $rentalDays = (int) ceil($estimatedHours / 8); // 8 working hours per day
         $rentalDays = max($rentalDays, 1); // minimum 1 day
@@ -150,10 +149,10 @@ class RentalRequestController extends Controller
             'is_free' => $deliveryFee == 0,
         ];
 
-        // ── Cost breakdown (based on price per sqm) ──
-        $baseCost       = $equipment->price_per_sqm * $farmSizeSqm;
-        $serviceCharge  = round($baseCost * 0.05, 2); // 5% service charge
-        $totalCost      = $baseCost + $deliveryFee + $serviceCharge;
+        // ── Cost breakdown (based on price per hectare) ──
+        $pricePerHectare = $equipment->price_per_hectare ?? 0;
+        $baseCost       = $pricePerHectare * $farmSizeHectares;
+        $totalCost      = $baseCost + $deliveryFee;
 
         // Auto-calculate end date from start date + rental days
         $startDate = \Carbon\Carbon::parse($request->input('start_date'));
@@ -185,7 +184,7 @@ class RentalRequestController extends Controller
             'longitude'        => $deliveryLng,
             'base_cost'        => $baseCost,
             'delivery_fee'     => $deliveryFee,
-            'service_charge'   => $serviceCharge,
+            'service_charge'   => 0,
             'total_cost'       => $totalCost,
             'status'           => 'forwarded',
             'payment_method'   => $request->input('payment_method'),
@@ -198,20 +197,19 @@ class RentalRequestController extends Controller
         $equipment->status = 'rented';
         $equipment->save();
 
-        $rentalRequest->load('equipment:id,name,category,price_per_sqm,coverage_rate,location,latitude,longitude');
+        $rentalRequest->load('equipment:id,name,category,price_per_hectare,location,latitude,longitude');
 
         return response()->json([
             'message'        => 'Rental request submitted and forwarded to the equipment owner.',
             'rental_request' => $rentalRequest,
             'cost_breakdown' => [
                 'farm_size_sqm'    => $farmSizeSqm,
-                'coverage_rate'    => $equipment->coverage_rate,
+                'farm_size_hectares' => $farmSizeHectares,
                 'estimated_hours'  => $estimatedHours,
                 'rental_days'      => $rentalDays,
-                'price_per_sqm'    => $equipment->price_per_sqm,
+                'price_per_hectare' => $pricePerHectare,
                 'base_cost'        => $baseCost,
                 'delivery_fee'     => $deliveryFee,
-                'service_charge'   => $serviceCharge,
                 'total_cost'       => $totalCost,
                 'transportation_details' => $feeBreakdown,
             ],
@@ -231,7 +229,7 @@ class RentalRequestController extends Controller
 
         $query = RentalRequest::with([
                 'renter:id,name,email',
-                'equipment:id,name,category,price_per_sqm,coverage_rate,transportation_fee,location',
+                'equipment:id,name,category,price_per_hectare,transportation_fee,location',
             ])
             ->whereIn('equipment_id', $equipmentIds)
             ->whereNull('archived_at')

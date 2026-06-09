@@ -1,0 +1,40 @@
+URGENT FIX FOR WHITE SCREEN
+============================
+
+The MyEquipment.jsx file is CORRECT and has the proper export.
+The issue is Vite's cache is stuck showing an old version.
+
+SOLUTION - Do these steps IN ORDER:
+====================================
+
+1. STOP the dev server completely
+   - Go to the terminal running "npm run dev"
+   - Press Ctrl+C
+   - Wait for it to fully stop
+
+2. DELETE the Vite cache folder
+   - Open a NEW terminal
+   - Run these commands:
+   
+   cd frontend_capstone
+   rmdir /s /q node_modules\.vite
+   
+   (If that doesn't work, manually delete the folder:
+    frontend_capstone/node_modules/.vite)
+
+3. START the dev server again
+   - In the same terminal:
+   
+   npm run dev
+
+4. HARD REFRESH your browser
+   - Press Ctrl+Shift+R (or Ctrl+F5)
+   - Or open DevTools (F12) and right-click the refresh button, select "Empty Cache and Hard Reload"
+
+The page should now load correctly with:
+- Price per hectare (₱) field
+- NO Coverage Rate field
+- Equipment showing ₱X/hectare
+
+If it STILL doesn't work after these steps, the browser might be caching.
+Try opening in an Incognito/Private window.

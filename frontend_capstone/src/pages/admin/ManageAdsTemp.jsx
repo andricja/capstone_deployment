@@ -215,6 +215,8 @@ function ManageAds() {
           ))
         )}
       </div>
+    </div>
+  );
 }
 
 export default ManageAds;
