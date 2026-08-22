@@ -5,12 +5,16 @@ use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminReportController;
 use App\Http\Controllers\Api\ArchiveController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EquipmentController;
 use App\Http\Controllers\Api\GcashSettingController;
 use App\Http\Controllers\Api\MessageRequestController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RentalRequestController;
+use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\SmtpSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -95,6 +99,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/messages',  [MessageRequestController::class, 'myMessages']);
         Route::post('/messages', [MessageRequestController::class, 'store']);
 
+        // Renter Payments
+        Route::get('/payments',                    [PaymentController::class, 'renterPayments']);
+        Route::post('/payments/{id}/proof',        [PaymentController::class, 'uploadPaymentProof']);
+
+        // Calendar
+        Route::get('/calendar/events',             [CalendarController::class, 'renterEvents']);
+
         // Archive
         Route::get('/archived/rentals',             [ArchiveController::class, 'renterArchivedRentals']);
         Route::patch('/archived/rentals/{id}',      [ArchiveController::class, 'renterToggleRental']);
@@ -127,6 +138,17 @@ Route::middleware('auth:sanctum')->group(function () {
         // GCash settings
         Route::get('/gcash-settings',  [GcashSettingController::class, 'show']);
         Route::post('/gcash-settings', [GcashSettingController::class, 'store']);
+
+        // Owner Earnings/Payments
+        Route::get('/payments',       [PaymentController::class, 'ownerPayments']);
+        Route::get('/payments/stats', [PaymentController::class, 'ownerStats']);
+
+        // Calendar
+        Route::get('/calendar/events', [CalendarController::class, 'ownerEvents']);
+
+        // Sales Dashboard
+        Route::get('/sales/dashboard',         [SalesController::class, 'ownerDashboard']);
+        Route::get('/sales/revenue-trends',    [SalesController::class, 'revenueOverTime']);
 
         // Archive
         Route::get('/archived/equipment',            [ArchiveController::class, 'ownerArchivedEquipment']);
@@ -178,7 +200,21 @@ Route::middleware('auth:sanctum')->group(function () {
         // SMTP settings
         Route::get('/smtp-settings',       [SmtpSettingController::class, 'show']);
         Route::post('/smtp-settings',      [SmtpSettingController::class, 'store']);
+
+        // Audit Trail & Session Logs
+        Route::get('/audit-logs',          [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/sessions', [AuditLogController::class, 'sessions']);
+        Route::get('/audit-logs/stats',    [AuditLogController::class, 'stats']);
         Route::post('/smtp-settings/test', [SmtpSettingController::class, 'test']);
+
+        // Payment Tracker
+        Route::get('/payments',                [PaymentController::class, 'index']);
+        Route::get('/payments/stats',          [PaymentController::class, 'stats']);
+        Route::patch('/payments/{id}/verify',  [PaymentController::class, 'verifyPayment']);
+        Route::patch('/payments/{id}/status',  [PaymentController::class, 'updatePaymentStatus']);
+
+        // Calendar
+        Route::get('/calendar/events',         [CalendarController::class, 'adminEvents']);
 
         // Archive
         Route::get('/archived/all',                   [ArchiveController::class, 'adminArchivedAll']);
@@ -197,5 +233,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/ads/{ad}',               [AdController::class, 'update']);
         Route::delete('/ads/{ad}',            [AdController::class, 'destroy']);
         Route::post('/ads/{ad}/toggle-status', [AdController::class, 'toggleStatus']);
+
+        // Sales Management
+        Route::get('/sales/dashboard',        [SalesController::class, 'adminDashboard']);
+        Route::get('/sales/revenue-trends',   [SalesController::class, 'revenueOverTime']);
+        Route::get('/sales/top-equipment',    [SalesController::class, 'topEquipment']);
     });
 });

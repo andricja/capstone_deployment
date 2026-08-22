@@ -19,6 +19,7 @@ export default function MyEquipment() {
   const [equipment, setEquipment] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -175,6 +176,51 @@ export default function MyEquipment() {
     }
   };
 
+  // Calculate tab counts and filter equipment
+  const allEquipment = equipment?.data || [];
+  const tabs = [
+    { id: 'all', label: 'All Equipment', count: allEquipment.length, color: 'gray' },
+    { id: 'available', label: 'Available', count: allEquipment.filter(e => e.status === 'available').length, color: 'green' },
+    { id: 'rented', label: 'Rented', count: allEquipment.filter(e => e.status === 'rented').length, color: 'blue' },
+    { id: 'maintenance', label: 'Maintenance', count: allEquipment.filter(e => e.status === 'maintenance').length, color: 'amber' },
+    { id: 'pending', label: 'Pending', count: allEquipment.filter(e => e.status === 'pending').length, color: 'yellow' },
+    { id: 'rejected', label: 'Rejected', count: allEquipment.filter(e => e.status === 'rejected').length, color: 'red' },
+  ];
+
+  const filteredEquipment = activeTab === 'all' 
+    ? allEquipment 
+    : allEquipment.filter(e => e.status === activeTab);
+
+  const getTabColorClasses = (tabId, isActive) => {
+    const colors = {
+      all: {
+        active: 'bg-gray-600 text-white border-gray-700',
+        inactive: 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+      },
+      available: {
+        active: 'bg-green-600 text-white border-green-700',
+        inactive: 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+      },
+      rented: {
+        active: 'bg-blue-600 text-white border-blue-700',
+        inactive: 'bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+      },
+      maintenance: {
+        active: 'bg-amber-600 text-white border-amber-700',
+        inactive: 'bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+      },
+      pending: {
+        active: 'bg-yellow-600 text-white border-yellow-700',
+        inactive: 'bg-white dark:bg-gray-800 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+      },
+      rejected: {
+        active: 'bg-red-600 text-white border-red-700',
+        inactive: 'bg-white dark:bg-gray-800 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+      }
+    };
+    return colors[tabId]?.[isActive ? 'active' : 'inactive'] || colors.all.inactive;
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -184,16 +230,48 @@ export default function MyEquipment() {
         </button>
       </div>
 
+      {/* Status Tabs */}
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap gap-2 pb-4">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setPage(1); // Reset to first page when changing tabs
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${getTabColorClasses(tab.id, activeTab === tab.id)}`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  activeTab === tab.id 
+                    ? 'bg-white/20' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <CardGridSkeleton count={4} />
-      ) : equipment?.data?.length === 0 ? (
+      ) : allEquipment.length === 0 ? (
         <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <p>You haven&apos;t listed any equipment yet.</p>
           <button onClick={openAdd} className="mt-3 text-green-600 hover:underline font-medium">Add your first equipment</button>
         </div>
+      ) : filteredEquipment.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <p className="text-lg mb-2">No equipment in this category</p>
+          <p className="text-sm">Try selecting a different tab or add new equipment.</p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {equipment.data.map((eq) => (
+          {filteredEquipment.map((eq) => (
             <div key={eq.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-5 transition-colors">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">

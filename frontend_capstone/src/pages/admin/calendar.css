@@ -1,0 +1,124 @@
+/* Calendar Styles */
+.rbc-calendar {
+  @apply bg-white dark:bg-gray-800 rounded-lg font-sans;
+}
+
+.rbc-header {
+  @apply bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-3 border-b border-gray-200 dark:border-gray-600;
+}
+
+.rbc-today {
+  @apply bg-green-50 dark:bg-green-900/20;
+}
+
+.rbc-off-range-bg {
+  @apply bg-gray-50 dark:bg-gray-900;
+}
+
+.rbc-event {
+  @apply rounded text-white text-xs font-medium shadow-sm;
+}
+
+.rbc-event:hover {
+  @apply shadow-md cursor-pointer;
+}
+
+.rbc-event-label {
+  @apply text-xs;
+}
+
+.rbc-event-content {
+  @apply px-1;
+}
+
+.rbc-toolbar {
+  @apply flex flex-wrap items-center justify-between mb-4 gap-2;
+}
+
+.rbc-toolbar button {
+  @apply px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-sm font-medium;
+}
+
+.rbc-toolbar button:active,
+.rbc-toolbar button.rbc-active {
+  @apply bg-green-600 text-white border-green-600 dark:bg-green-700 dark:border-green-700;
+}
+
+.rbc-toolbar button:active:hover,
+.rbc-toolbar button.rbc-active:hover {
+  @apply bg-green-700 dark:bg-green-800;
+}
+
+.rbc-toolbar-label {
+  @apply text-lg font-bold text-gray-900 dark:text-white;
+}
+
+.rbc-date-cell {
+  @apply text-sm;
+}
+
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  @apply border border-gray-200 dark:border-gray-700 rounded;
+}
+
+.rbc-day-bg {
+  @apply border-r border-gray-200 dark:border-gray-700;
+}
+
+.rbc-time-slot {
+  @apply border-t border-gray-200 dark:border-gray-700;
+}
+
+.rbc-time-header-content {
+  @apply border-l border-gray-200 dark:border-gray-700;
+}
+
+.rbc-time-content {
+  @apply border-t border-gray-200 dark:border-gray-700;
+}
+
+.rbc-current-time-indicator {
+  @apply bg-green-600;
+}
+
+.rbc-show-more {
+  @apply text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-xs font-medium;
+}
+
+.rbc-agenda-view table.rbc-agenda-table {
+  @apply border border-gray-200 dark:border-gray-700;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  @apply py-2 px-3 border-b border-gray-200 dark:border-gray-700;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td {
+  @apply border-l border-gray-200 dark:border-gray-700;
+}
+
+.rbc-agenda-view table.rbc-agenda-table .rbc-agenda-time-cell {
+  @apply text-gray-600 dark:text-gray-400 text-sm;
+}
+
+.rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  @apply bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-3 px-3 border-b border-gray-200 dark:border-gray-600;
+}
+
+.rbc-month-row {
+  @apply border-b border-gray-200 dark:border-gray-700;
+}
+
+.rbc-date-cell {
+  @apply text-gray-700 dark:text-gray-300;
+}
+
+.rbc-date-cell.rbc-now {
+  @apply font-bold text-green-600 dark:text-green-400;
+}
+
+.rbc-date-cell > a {
+  @apply hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full w-7 h-7 flex items-center justify-center;
+}

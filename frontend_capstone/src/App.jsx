@@ -7,11 +7,15 @@ import RenterDashboard from './pages/renter/RenterDashboard';
 import BrowseEquipment from './pages/renter/BrowseEquipment';
 import MyRentals from './pages/renter/MyRentals';
 import RenterMessages from './pages/renter/RenterMessages';
+import RenterCalendar from './pages/renter/RenterCalendar';
 
 // Owner pages
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyEquipment from './pages/owner/MyEquipment';
 import OwnerRentals from './pages/owner/OwnerRentals';
+import OwnerEarnings from './pages/owner/OwnerEarnings';
+import OwnerCalendar from './pages/owner/OwnerCalendar';
+import SalesDashboard from './pages/owner/SalesDashboard';
 
 
 // Admin pages
@@ -23,6 +27,10 @@ import AdminReports from './pages/admin/AdminReports';
 import AdminOwners from './pages/admin/AdminOwners';
 import AdminAccounts from './pages/admin/AdminAccounts';
 import ManageAds from './pages/admin/ManageAdsTemp';
+import AuditLogs from './pages/admin/AuditLogs';
+import PaymentTracker from './pages/admin/PaymentTracker';
+import CalendarView from './pages/admin/CalendarView';
+import SalesManagement from './pages/admin/SalesManagement';
 
 // Shared
 import AccountSettings from './pages/AccountSettings';
@@ -43,6 +51,7 @@ export default function App() {
           <Route path="/renter/dashboard" element={<RenterDashboard />} />
           <Route path="/renter/browse" element={<BrowseEquipment />} />
           <Route path="/renter/rentals" element={<MyRentals />} />
+          <Route path="/renter/calendar" element={<RenterCalendar />} />
           <Route path="/renter/messages" element={<RenterMessages />} />
           <Route path="/renter/settings" element={<AccountSettings />} />
         </Route>
@@ -54,6 +63,9 @@ export default function App() {
           <Route path="/owner/dashboard" element={<OwnerDashboard />} />
           <Route path="/owner/equipment" element={<MyEquipment />} />
           <Route path="/owner/rentals" element={<OwnerRentals />} />
+          <Route path="/owner/calendar" element={<OwnerCalendar />} />
+          <Route path="/owner/earnings" element={<OwnerEarnings />} />
+          <Route path="/owner/sales" element={<SalesDashboard />} />
           <Route path="/owner/settings" element={<AccountSettings />} />
         </Route>
       </Route>
@@ -65,10 +77,14 @@ export default function App() {
           <Route path="/admin/owners" element={<AdminOwners />} />
           <Route path="/admin/equipment" element={<AdminEquipment />} />
           <Route path="/admin/rentals" element={<AdminRentals />} />
+          <Route path="/admin/calendar" element={<CalendarView />} />
+          <Route path="/admin/payments" element={<PaymentTracker />} />
+          <Route path="/admin/sales" element={<SalesManagement />} />
           <Route path="/admin/messages" element={<AdminMessages />} />
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/accounts" element={<AdminAccounts />} />
           <Route path="/admin/ads" element={<ManageAds />} />
+          <Route path="/admin/audit-logs" element={<AuditLogs />} />
           <Route path="/admin/settings" element={<AccountSettings />} />
         </Route>
       </Route>

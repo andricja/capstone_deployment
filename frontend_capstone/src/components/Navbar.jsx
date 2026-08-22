@@ -5,8 +5,9 @@ import {
   Menu, X, Tractor, LogOut,
   Home, Search, ClipboardList, Mail,
   Package, ClipboardCheck, Settings, Users, BarChart3,
-  CheckCircle, UserCheck, Megaphone,
-  Sun, Moon, ChevronRight, User,
+  CheckCircle, UserCheck, Megaphone, FileText,
+  Sun, Moon, ChevronRight, User, DollarSign, Wallet, CalendarDays,
+  TrendingUp,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -192,6 +193,7 @@ function getNavLinks(role) {
         { to: '/renter/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
         { to: '/renter/browse', label: 'Browse Equipment', icon: <Search className="w-5 h-5" /> },
         { to: '/renter/rentals', label: 'My Rentals', icon: <ClipboardList className="w-5 h-5" /> },
+        { to: '/renter/calendar', label: 'My Calendar', icon: <CalendarDays className="w-5 h-5" /> },
         { to: '/renter/messages', label: 'Contact Us', icon: <Mail className="w-5 h-5" /> },
         { to: '/renter/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
@@ -200,6 +202,9 @@ function getNavLinks(role) {
         { to: '/owner/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
         { to: '/owner/equipment', label: 'My Equipment', icon: <Package className="w-5 h-5" /> },
         { to: '/owner/rentals', label: 'Rental Requests', icon: <ClipboardCheck className="w-5 h-5" /> },
+        { to: '/owner/calendar', label: 'Calendar', icon: <CalendarDays className="w-5 h-5" /> },
+        { to: '/owner/earnings', label: 'My Earnings', icon: <Wallet className="w-5 h-5" /> },
+        { to: '/owner/sales', label: 'Sales Dashboard', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/owner/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     case 'admin':
@@ -208,10 +213,14 @@ function getNavLinks(role) {
         { to: '/admin/owners', label: 'Owners', icon: <Users className="w-5 h-5" /> },
         { to: '/admin/equipment', label: 'Equipment Approvals', icon: <CheckCircle className="w-5 h-5" /> },
         { to: '/admin/rentals', label: 'All Rentals', icon: <ClipboardList className="w-5 h-5" /> },
+        { to: '/admin/calendar', label: 'Calendar View', icon: <CalendarDays className="w-5 h-5" /> },
+        { to: '/admin/payments', label: 'Payment Tracker', icon: <DollarSign className="w-5 h-5" /> },
+        { to: '/admin/sales', label: 'Sales Management', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/admin/messages', label: 'Messages', icon: <Mail className="w-5 h-5" /> },
         { to: '/admin/reports', label: 'Revenue Reports', icon: <BarChart3 className="w-5 h-5" /> },
         { to: '/admin/accounts', label: 'Accounts', icon: <UserCheck className="w-5 h-5" /> },
         { to: '/admin/ads', label: 'Manage Ads', icon: <Megaphone className="w-5 h-5" /> },
+        { to: '/admin/audit-logs', label: 'Audit Trail', icon: <FileText className="w-5 h-5" /> },
         { to: '/admin/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     default:

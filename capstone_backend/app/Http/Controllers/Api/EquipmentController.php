@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEquipmentRequest;
 use App\Http\Requests\UpdateEquipmentRequest;
 use App\Models\Equipment;
+use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -99,6 +100,9 @@ class EquipmentController extends Controller
 
         $equipment = Equipment::create($data);
 
+        // Log equipment creation
+        AuditService::logCreate($equipment, "Created equipment: {$equipment->name}");
+
         return response()->json([
             'message'   => 'Equipment submitted for admin review.',
             'equipment' => $equipment,
@@ -110,6 +114,9 @@ class EquipmentController extends Controller
      */
     public function update(UpdateEquipmentRequest $request, Equipment $equipment): JsonResponse
     {
+        // Store old values for audit log
+        $oldValues = $equipment->only(['name', 'price_per_hectare', 'status', 'category', 'description', 'transportation_fee']);
+        
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
@@ -128,6 +135,9 @@ class EquipmentController extends Controller
 
         $equipment->update($data);
 
+        // Log equipment update
+        AuditService::logUpdate($equipment, $oldValues);
+
         return response()->json([
             'message'   => 'Equipment updated.',
             'equipment' => $equipment->fresh(),
@@ -142,6 +152,9 @@ class EquipmentController extends Controller
         if ($equipment->owner_id !== $request->user()->id) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
+
+        // Log equipment deletion before deleting
+        AuditService::logDelete($equipment, "Deleted equipment: {$equipment->name}");
 
         $equipment->delete();
 
@@ -257,6 +270,9 @@ class EquipmentController extends Controller
             'approved_at'  => now(),
         ]);
 
+        // Log equipment approval
+        AuditService::logApprove($equipment, "Approved equipment: {$equipment->name} (Fee: ₱{$request->input('approval_fee')})");
+
         $equipment->load('owner:id,name,email');
 
         return response()->json([
@@ -275,6 +291,9 @@ class EquipmentController extends Controller
         }
 
         $equipment->update(['status' => 'rejected']);
+
+        // Log equipment rejection
+        AuditService::logReject($equipment, "Rejected equipment: {$equipment->name}");
 
         return response()->json([
             'message'   => 'Equipment rejected.',

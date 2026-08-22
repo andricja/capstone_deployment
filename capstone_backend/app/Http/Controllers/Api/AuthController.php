@@ -8,6 +8,7 @@ use App\Mail\EmailVerificationCode;
 use App\Models\Equipment;
 use App\Models\RentalRequest;
 use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -200,6 +201,9 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Log successful login
+        AuditService::logLogin();
+
         return response()->json([
             'message' => 'Login successful.',
             'user'    => $user,
@@ -212,6 +216,9 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
+        // Log logout before token deletion
+        AuditService::logLogout();
+        
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully.']);
