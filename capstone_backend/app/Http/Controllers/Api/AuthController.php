@@ -102,15 +102,28 @@ class AuthController extends Controller
         ]);
 
         if ($newStatus === 'approved') {
+            // Auto-login for renters (auto-approved)
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
             return response()->json([
                 'message'       => 'Email verified! Your account is ready — you can now log in.',
                 'auto_approved' => true,
+                'auto_login'    => true,
+                'token'         => $token,
+                'user'          => [
+                    'id'    => $user->id,
+                    'name'  => $user->name,
+                    'email' => $user->email,
+                    'role'  => $user->role,
+                    'email_verified_at' => $user->email_verified_at,
+                ],
             ]);
         }
 
         return response()->json([
             'message'       => 'Email verified! Your account is now pending admin approval.',
             'auto_approved' => false,
+            'auto_login'    => false,
         ]);
     }
 

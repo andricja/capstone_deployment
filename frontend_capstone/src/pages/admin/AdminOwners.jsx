@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../lib/api';
 import DataTable from '../../components/DataTable';
-import { ListPageSkeleton } from '../../components/Skeleton';
-import { Users, UserPlus, Tractor, Mail, Calendar, LayoutGrid, Table, ClipboardList, Plus, X, MapPin, DollarSign, Eye, Truck, Tag, FileText, Clock, Archive } from 'lucide-react';
+import { ListPageSkeleton, TableSkeleton } from '../../components/Skeleton';
+import { Users, UserPlus, Tractor, Mail, Calendar, LayoutGrid, Table, ClipboardList, Plus, X, MapPin, DollarSign, Eye, Truck, Tag, FileText, Clock, Archive, Check, ListFilter, CheckCircle, LayoutList, Receipt } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import { useToast } from '../../components/Toast';
+import StatusBadge from '../../components/StatusBadge';
+import ReceiptModal from '../../components/ReceiptModal';
 
 const CATEGORIES = ['tractor','harvester','planter','irrigation','cultivator','sprayer','trailer','other'];
 
@@ -13,8 +15,19 @@ const initialForm = {
   name: '', category: 'tractor', description: '', daily_rate: '', transportation_fee: '', location: '', image: null,
 };
 
+const EQUIPMENT_FILTERS = [
+  { key: 'all',      label: 'All',      icon: <LayoutList className="w-4 h-4" /> },
+  { key: 'pending',  label: 'Pending',  icon: <Clock className="w-4 h-4" /> },
+  { key: 'approved', label: 'Approved', icon: <CheckCircle className="w-4 h-4" /> },
+];
+
 export default function AdminOwners() {
   const toast = useToast();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('owners'); // 'owners' | 'equipment'
+  
+  // Owners tab state
   const [data, setData] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +42,15 @@ export default function AdminOwners() {
   // Owner detail modal state
   const [detailOwner, setDetailOwner] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  
+  // Equipment Approvals tab state
+  const [equipmentData, setEquipmentData] = useState([]);
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
+  const [equipmentLoading, setEquipmentLoading] = useState(false);
+  const [approveItem, setApproveItem] = useState(null);
+  const [approvalFee, setApprovalFee] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [receipt, setReceipt] = useState(null);
 
 
 
@@ -44,6 +66,73 @@ export default function AdminOwners() {
   };
 
   useEffect(() => { fetchStats(); fetchOwners(); }, []);
+  
+  useEffect(() => {
+    if (activeTab === 'equipment') {
+      fetchEquipment(equipmentFilter);
+    }
+  }, [activeTab, equipmentFilter]);
+
+  // ================ EQUIPMENT APPROVALS FUNCTIONS ================
+  const fetchEquipment = (f = equipmentFilter) => {
+    setEquipmentLoading(true);
+    const params = { all: 1 };
+    if (f === 'pending') params.status = 'pending';
+    else if (f === 'approved') params.status = 'available';
+    api.get('/admin/equipment/all', { params })
+      .then((r) => setEquipmentData(Array.isArray(r.data) ? r.data : r.data?.data ?? []))
+      .finally(() => setEquipmentLoading(false));
+  };
+
+  const openApproveModal = (item, e) => {
+    e?.stopPropagation();
+    setApproveItem(item);
+    setApprovalFee('');
+  };
+
+  const confirmApprove = async () => {
+    if (!approvalFee || parseFloat(approvalFee) < 0) return;
+    setApproving(true);
+    try {
+      const res = await api.patch(`/admin/equipment/${approveItem.id}/approve`, {
+        approval_fee: parseFloat(approvalFee),
+      });
+      setReceipt(res.data.equipment);
+      setApproveItem(null);
+      setApprovalFee('');
+      toast.success('Equipment approved.');
+      fetchEquipment(equipmentFilter);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve.');
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleRejectEquipment = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('Reject this equipment?')) return;
+    try {
+      await api.patch(`/admin/equipment/${id}/reject`);
+      toast.success('Equipment rejected.');
+      fetchEquipment(equipmentFilter);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject.');
+    }
+  };
+
+  const handleArchiveEquipment = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('Archive this equipment?')) return;
+    try {
+      await api.patch(`/admin/archived/equipment/${id}`);
+      toast.success('Equipment archived.');
+      fetchEquipment(equipmentFilter);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to archive.');
+    }
+  };
+  // ================ END EQUIPMENT APPROVALS FUNCTIONS ================
 
   const openModal = (owner, e) => {
     e?.stopPropagation();
@@ -135,37 +224,72 @@ export default function AdminOwners() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mb-6">
         <Users className="w-7 h-7 text-green-600" />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Equipment Owners</h1>
-        <span className="text-sm text-gray-500 dark:text-gray-400">{data.length} total owners</span>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Owners & Equipment</h1>
+      </div>
 
-        {/* Toggle buttons */}
-        <div className="ml-auto flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-4">
           <button
-            onClick={() => setView('card')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === 'card'
-                ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            onClick={() => setActiveTab('owners')}
+            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'owners'
+                ? 'border-green-600 text-green-600 dark:text-green-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <LayoutGrid className="w-4 h-4" />
-            Cards
+            <Users className="w-4 h-4" />
+            Equipment Owners
           </button>
           <button
-            onClick={() => setView('table')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === 'table'
-                ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            onClick={() => setActiveTab('equipment')}
+            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'equipment'
+                ? 'border-green-600 text-green-600 dark:text-green-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <Table className="w-4 h-4" />
-            Table
+            <ListFilter className="w-4 h-4" />
+            Equipment Approvals
           </button>
         </div>
       </div>
+
+      {/* Owners Tab Content */}
+      {activeTab === 'owners' && (
+        <>
+          {/* Sub-header with view toggle */}
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <span className="text-sm text-gray-500 dark:text-gray-400">{data.length} total owners</span>
+
+            {/* Toggle buttons */}
+            <div className="ml-auto flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              <button
+                onClick={() => setView('card')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  view === 'card'
+                    ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Cards
+              </button>
+              <button
+                onClick={() => setView('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  view === 'table'
+                    ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                <Table className="w-4 h-4" />
+                Table
+              </button>
+            </div>
+          </div>
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -344,6 +468,249 @@ export default function AdminOwners() {
           defaultSort={{ key: 'created_at', dir: 'desc' }}
           emptyMessage="No registered owners yet."
         />
+      )}
+        </>
+      )}
+
+      {/* Equipment Approvals Tab Content */}
+      {activeTab === 'equipment' && (
+        <>
+          {/* Filter tabs */}
+          <div className="flex items-center justify-end mb-6">
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              {EQUIPMENT_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setEquipmentFilter(f.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    equipmentFilter === f.key
+                      ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {f.icon}
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {equipmentLoading ? (
+            <TableSkeleton rows={8} cols={5} />
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'id',
+                  label: 'Transaction',
+                  render: (row) => <span className="font-mono text-xs text-gray-500 dark:text-gray-400">TXN-{String(row.id).padStart(5, '0')}</span>,
+                  sortValue: (row) => row.id,
+                },
+                {
+                  key: 'owner.name',
+                  label: 'Owner',
+                  render: (row) => (
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{row.owner?.name ?? '—'}</p>
+                      <p className="text-xs text-gray-400">{row.owner?.email ?? ''}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'name',
+                  label: 'Equipment',
+                  render: (row) => (
+                    <div className="flex items-center gap-2">
+                      {row.image ? (
+                        <img src={`/storage/${row.image}`} alt={row.name} className="w-8 h-8 rounded object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm text-gray-300">🚜</div>
+                      )}
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{row.name}</p>
+                        <p className="text-xs text-gray-400 capitalize">{row.category} • {row.location}</p>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'daily_rate',
+                  label: 'Amount',
+                  align: 'right',
+                  render: (row) => (
+                    <span className="font-medium text-gray-900 dark:text-white">₱{parseFloat(row.daily_rate).toLocaleString()}<span className="text-xs text-gray-400">/day</span></span>
+                  ),
+                  sortValue: (row) => parseFloat(row.daily_rate),
+                },
+                {
+                  key: 'transportation_fee',
+                  label: 'Cash',
+                  align: 'right',
+                  render: (row) =>
+                    parseFloat(row.transportation_fee) > 0
+                      ? <span className="text-gray-600 dark:text-gray-400">₱{parseFloat(row.transportation_fee).toLocaleString()}</span>
+                      : <span className="text-gray-300">—</span>,
+                  sortValue: (row) => parseFloat(row.transportation_fee),
+                },
+                {
+                  key: 'created_at',
+                  label: 'Date',
+                  render: (row) => <span className="text-gray-500 dark:text-gray-400 text-xs">{new Date(row.created_at).toLocaleDateString()}</span>,
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  align: 'center',
+                  render: (row) => <StatusBadge status={row.status} />,
+                },
+                {
+                  key: '_action',
+                  label: 'Action',
+                  align: 'center',
+                  sortable: false,
+                  render: (row) =>
+                    row.status === 'pending' ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Tooltip text="Approve">
+                          <button
+                            onClick={(e) => openApproveModal(row, e)}
+                            className="p-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Reject">
+                          <button
+                            onClick={(e) => handleRejectEquipment(row.id, e)}
+                            className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    ) : row.approval_fee != null && row.approved_at ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Tooltip text="View Receipt">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setReceipt(row); }}
+                            className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Archive">
+                          <button
+                            onClick={(e) => handleArchiveEquipment(row.id, e)}
+                            className="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    ) : (
+                      <Tooltip text="Archive">
+                        <button
+                          onClick={(e) => handleArchiveEquipment(row.id, e)}
+                          className="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                    ),
+                },
+              ]}
+              data={equipmentData}
+              searchKeys={['name', 'category', 'location', 'owner.name', 'owner.email', 'status']}
+              defaultSort={{ key: 'created_at', dir: 'desc' }}
+              emptyMessage={equipmentFilter === 'pending' ? 'No pending equipment to review.' : equipmentFilter === 'approved' ? 'No approved equipment yet.' : 'No equipment found.'}
+            />
+          )}
+
+          {/* Approval Fee Modal */}
+          {approveItem && createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setApproveItem(null)}>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 px-6 py-4 border-b dark:border-gray-700 flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Approve Equipment</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Set the approval fee for this equipment</p>
+                  </div>
+                </div>
+
+                <div className="px-6 pt-4 pb-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    {approveItem.image ? (
+                      <img src={`/storage/${approveItem.image}`} alt={approveItem.name} className="w-14 h-14 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center text-2xl">🚜</div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{approveItem.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{approveItem.category} • {approveItem.location}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Owner: {approveItem.owner?.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+                      <p className="text-gray-400 text-xs">Daily Rate</p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.daily_rate).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+                      <p className="text-gray-400 text-xs">Transport Fee</p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.transportation_fee).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Fee (₱)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={approvalFee}
+                        onChange={(e) => setApprovalFee(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm dark:bg-gray-700 dark:text-gray-200"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t dark:border-gray-700 flex justify-end gap-2">
+                  <button
+                    onClick={() => setApproveItem(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmApprove}
+                    disabled={!approvalFee || parseFloat(approvalFee) < 0 || approving}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg hover:from-green-700 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    {approving ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Confirm Approval
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Receipt Modal */}
+          <ReceiptModal equipment={receipt} onClose={() => setReceipt(null)} />
+        </>
       )}
 
       {/* ── Add Equipment Modal ── */}

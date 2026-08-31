@@ -199,6 +199,14 @@ class RentalRequestController extends Controller
 
         $rentalRequest->load('equipment:id,name,category,price_per_hectare,location,latitude,longitude');
 
+        // Send notification to equipment owner about new rental request
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyNewRentalRequest($rentalRequest);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send new rental request notification', ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message'        => 'Rental request submitted and forwarded to the equipment owner.',
             'rental_request' => $rentalRequest,
@@ -266,6 +274,14 @@ class RentalRequestController extends Controller
             $rentalRequest->update(['status' => 'approved']);
         });
 
+        // Send notification to renter about approval
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyRentalApproved($rentalRequest);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send rental approved notification', ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message'        => 'Rental request approved. Equipment remains unavailable until rental period.',
             'rental_request' => $rentalRequest->fresh()->load('renter:id,name,email', 'equipment:id,name,status'),
@@ -301,6 +317,14 @@ class RentalRequestController extends Controller
                 'rejection_reason' => $validated['rejection_reason'] ?? 'Rejected by owner.',
             ]);
         });
+
+        // Send notification to renter about rejection
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyRentalRejected($rentalRequest);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send rental rejected notification', ['error' => $e->getMessage()]);
+        }
 
         return response()->json([
             'message'        => 'Rental request rejected. Equipment is now available again.',

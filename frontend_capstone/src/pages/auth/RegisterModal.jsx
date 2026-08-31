@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../lib/api';
 import { Tractor, X, MailCheck, ArrowLeft } from 'lucide-react';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 
 export default function RegisterModal({ open, onClose, onSwitchToLogin, onVerifyEmail }) {
-  const { register } = useAuth();
+  const { register, setUser } = useAuth();
   const [step, setStep] = useState('form'); // 'form' | 'verify'
   const [form, setForm] = useState({
     name: '',
@@ -110,7 +111,24 @@ export default function RegisterModal({ open, onClose, onSwitchToLogin, onVerify
         : 'Email verified! Your account is now pending admin approval.';
       setVerifyMessage(res.data.message || msg);
       setVerified(true);
-      setTimeout(() => onClose(), 3000);
+      
+      // Auto-login if token is provided (renters)
+      if (res.data.auto_login && res.data.token && res.data.user) {
+        // Store token
+        localStorage.setItem('token', res.data.token);
+        
+        // Update auth context
+        setUser(res.data.user);
+        
+        // Show success message and redirect
+        setTimeout(() => {
+          onClose();
+          // Navigate to dashboard will happen automatically via LandingPage useEffect
+        }, 1500);
+      } else {
+        // For owners pending approval, just close modal after delay
+        setTimeout(() => onClose(), 3000);
+      }
     } catch (err) {
       setVerifyError(err.response?.data?.message || 'Invalid code. Please try again.');
     } finally {
@@ -158,6 +176,22 @@ export default function RegisterModal({ open, onClose, onSwitchToLogin, onVerify
                 {errors.general[0]}
               </div>
             )}
+
+            {/* Google Sign-In */}
+            <GoogleSignInButton 
+              onError={() => setErrors({ general: ['Google sign-in failed. Please try again.'] })}
+              disabled={loading}
+            />
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or register with email</span>
+              </div>
+            </div>
 
             <form onSubmit={handleRegister} className="space-y-4">
               {/* Role selector */}

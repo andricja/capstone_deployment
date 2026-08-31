@@ -131,6 +131,14 @@ class PaymentController extends Controller
             "Verified payment for rental #{$rental->id}"
         );
 
+        // Send notification to renter about payment verification
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyPaymentVerified($rental);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send payment verified notification', ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message' => 'Payment verified successfully.',
             'rental' => $rental->load(['renter', 'equipment', 'paymentVerifier']),
@@ -330,6 +338,14 @@ class PaymentController extends Controller
             ['payment_status' => 'paid'],
             "Uploaded payment proof for rental #{$rental->id}"
         );
+
+        // Send notification to equipment owner about payment received
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyPaymentReceived($rental);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send payment received notification', ['error' => $e->getMessage()]);
+        }
 
         return response()->json([
             'message' => 'Payment proof uploaded successfully. Awaiting admin verification.',

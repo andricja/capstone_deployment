@@ -68,6 +68,14 @@ class AccountController extends Controller
             ]);
         }
 
+        // Send push notification to user about account approval
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyAccountApproved($user);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send account approved notification', ['error' => $e->getMessage()]);
+        }
+
         return response()->json(['message' => 'Account approved. Notification email sent.']);
     }
 
@@ -95,6 +103,14 @@ class AccountController extends Controller
             return response()->json([
                 'message' => 'Account rejected but email notification could not be sent.',
             ]);
+        }
+
+        // Send push notification to user about account rejection
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyAccountRejected($user);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send account rejected notification', ['error' => $e->getMessage()]);
         }
 
         return response()->json(['message' => 'Account rejected. Notification email sent.']);

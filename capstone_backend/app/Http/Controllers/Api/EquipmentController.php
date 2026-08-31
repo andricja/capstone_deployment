@@ -273,6 +273,14 @@ class EquipmentController extends Controller
         // Log equipment approval
         AuditService::logApprove($equipment, "Approved equipment: {$equipment->name} (Fee: ₱{$request->input('approval_fee')})");
 
+        // Send notification to owner about equipment approval
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyEquipmentApproved($equipment);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send equipment approved notification', ['error' => $e->getMessage()]);
+        }
+
         $equipment->load('owner:id,name,email');
 
         return response()->json([
@@ -294,6 +302,14 @@ class EquipmentController extends Controller
 
         // Log equipment rejection
         AuditService::logReject($equipment, "Rejected equipment: {$equipment->name}");
+
+        // Send notification to owner about equipment rejection
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->notifyEquipmentRejected($equipment);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send equipment rejected notification', ['error' => $e->getMessage()]);
+        }
 
         return response()->json([
             'message'   => 'Equipment rejected.',

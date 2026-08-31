@@ -10,6 +10,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import NotificationBell from './NotificationBell';
 
 const HEADER_H = 'h-14'; // shared height token
 const HEADER_PX = '56px';
@@ -77,8 +78,11 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Right side: dark toggle + user info */}
+        {/* Right side: notification bell + dark toggle + user info */}
         <div className="flex items-center gap-3 px-4">
+          {/* Notification Bell */}
+          <NotificationBell />
+
           {/* Dark mode toggle */}
           <button
             onClick={toggle}
@@ -200,27 +204,19 @@ function getNavLinks(role) {
     case 'owner':
       return [
         { to: '/owner/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
-        { to: '/owner/equipment', label: 'My Equipment', icon: <Package className="w-5 h-5" /> },
-        { to: '/owner/rentals', label: 'Rental Requests', icon: <ClipboardCheck className="w-5 h-5" /> },
-        { to: '/owner/calendar', label: 'Calendar', icon: <CalendarDays className="w-5 h-5" /> },
-        { to: '/owner/earnings', label: 'My Earnings', icon: <Wallet className="w-5 h-5" /> },
-        { to: '/owner/sales', label: 'Sales Dashboard', icon: <TrendingUp className="w-5 h-5" /> },
+        { to: '/owner/equipment', label: 'My Equipment & Rentals', icon: <Package className="w-5 h-5" /> },
+        { to: '/owner/sales', label: 'Sales', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/owner/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     case 'admin':
       return [
         { to: '/admin/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
-        { to: '/admin/owners', label: 'Owners', icon: <Users className="w-5 h-5" /> },
-        { to: '/admin/equipment', label: 'Equipment Approvals', icon: <CheckCircle className="w-5 h-5" /> },
-        { to: '/admin/rentals', label: 'All Rentals', icon: <ClipboardList className="w-5 h-5" /> },
-        { to: '/admin/calendar', label: 'Calendar View', icon: <CalendarDays className="w-5 h-5" /> },
+        { to: '/admin/owners', label: 'Owners & Equipment', icon: <Users className="w-5 h-5" /> },
+        { to: '/admin/rentals', label: 'Rental Management', icon: <ClipboardList className="w-5 h-5" /> },
         { to: '/admin/payments', label: 'Payment Tracker', icon: <DollarSign className="w-5 h-5" /> },
-        { to: '/admin/sales', label: 'Sales Management', icon: <TrendingUp className="w-5 h-5" /> },
+        { to: '/admin/sales', label: 'Sales & Revenue', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/admin/messages', label: 'Messages', icon: <Mail className="w-5 h-5" /> },
-        { to: '/admin/reports', label: 'Revenue Reports', icon: <BarChart3 className="w-5 h-5" /> },
-        { to: '/admin/accounts', label: 'Accounts', icon: <UserCheck className="w-5 h-5" /> },
         { to: '/admin/ads', label: 'Manage Ads', icon: <Megaphone className="w-5 h-5" /> },
-        { to: '/admin/audit-logs', label: 'Audit Trail', icon: <FileText className="w-5 h-5" /> },
         { to: '/admin/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     default:

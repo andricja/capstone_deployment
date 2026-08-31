@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EquipmentController;
 use App\Http\Controllers\Api\GcashSettingController;
+use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\MessageRequestController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RentalRequestController;
@@ -26,6 +27,10 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-verification', [AuthController::class, 'resendVerificationCode']);
+
+// Google OAuth routes
+Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
 // Serve storage files (public access for images)
 Route::get('/storage/{path}', function ($path) {
@@ -70,6 +75,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user',    [AuthController::class, 'user']);
+
+    // Google Auth - Link/Unlink
+    Route::post('/auth/google/link', [GoogleAuthController::class, 'linkGoogleAccount']);
+    Route::post('/auth/google/unlink', [GoogleAuthController::class, 'unlinkGoogleAccount']);
+
+    // FCM Token management & Push Notifications
+    Route::post('/fcm/token', [\App\Http\Controllers\Api\FcmTokenController::class, 'store']);
+    Route::get('/fcm/tokens', [\App\Http\Controllers\Api\FcmTokenController::class, 'index']);
+    Route::delete('/fcm/token', [\App\Http\Controllers\Api\FcmTokenController::class, 'destroy']);
+    Route::get('/notifications/preferences', [\App\Http\Controllers\Api\FcmTokenController::class, 'getPreferences']);
+    Route::put('/notifications/preferences', [\App\Http\Controllers\Api\FcmTokenController::class, 'updatePreferences']);
+    Route::post('/notifications/test', [\App\Http\Controllers\Api\FcmTokenController::class, 'testNotification']);
 
     // Profile / Account settings (any role)
     Route::put('/profile',  [AuthController::class, 'updateProfile']);

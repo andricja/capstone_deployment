@@ -31,6 +31,9 @@ class User extends Authenticatable
         'email_verification_code',
         'email_code_expires_at',
         'admin_rejection_reason',
+        'google_id',
+        'avatar',
+        'notification_preferences',
     ];
 
     /**
@@ -58,6 +61,7 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'archived_at' => 'datetime',
             'email_code_expires_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -94,6 +98,12 @@ class User extends Authenticatable
     public function rentalRequests(): HasMany
     {
         return $this->hasMany(RentalRequest::class, 'renter_id');
+    }
+
+    /** FCM tokens for push notifications */
+    public function fcmTokens(): HasMany
+    {
+        return $this->hasMany(FcmToken::class);
     }
 
     /** GCash settings for this owner */
