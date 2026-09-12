@@ -1,18 +1,29 @@
 import { useState } from 'react';
 import api from '../lib/api';
 
-export default function GoogleSignInButton({ onSuccess, onError, disabled = false }) {
+export default function GoogleSignInButton({ onSuccess, onError, disabled = false, role = 'renter', mode = 'login' }) {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      // Get Google OAuth URL from backend
-      const response = await api.get('/auth/google');
+      // Get Google OAuth URL from backend with role and mode parameters
+      const response = await api.get('/auth/google', {
+        params: { 
+          role,
+          mode  // 'register' or 'login'
+        }
+      });
       const authUrl = response.data.url;
 
       // Save current URL to return after auth
       sessionStorage.setItem('preAuthUrl', window.location.pathname);
+      
+      // Save selected role for new user registration (backup method)
+      sessionStorage.setItem('googleAuthRole', role);
+      
+      // Save mode to determine if registration is allowed
+      sessionStorage.setItem('googleAuthMode', mode);
 
       // Redirect to Google OAuth
       window.location.href = authUrl;

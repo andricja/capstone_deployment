@@ -179,6 +179,8 @@ export default function RegisterModal({ open, onClose, onSwitchToLogin, onVerify
 
             {/* Google Sign-In */}
             <GoogleSignInButton 
+              role={form.role}
+              mode="register"
               onError={() => setErrors({ general: ['Google sign-in failed. Please try again.'] })}
               disabled={loading}
             />

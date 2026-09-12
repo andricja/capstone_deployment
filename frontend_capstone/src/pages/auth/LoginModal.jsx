@@ -54,6 +54,7 @@ export default function LoginModal({ open, onClose, onSwitchToRegister, onVerify
 
         {/* Google Sign-In */}
         <GoogleSignInButton 
+          mode="login"
           onError={(err) => setError('Google sign-in failed. Please try again.')}
           disabled={loading}
         />

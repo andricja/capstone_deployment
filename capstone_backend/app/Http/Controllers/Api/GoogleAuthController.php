@@ -14,9 +14,19 @@ class GoogleAuthController extends Controller
     /**
      * Redirect to Google OAuth
      */
-    public function redirectToGoogle()
+    public function redirectToGoogle(Request $request)
     {
         try {
+            // Store role in session if provided (from registration page)
+            if ($request->has('role')) {
+                session(['google_oauth_role' => $request->input('role')]);
+            }
+            
+            // Store mode in session ('register' or 'login')
+            if ($request->has('mode')) {
+                session(['google_oauth_mode' => $request->input('mode')]);
+            }
+            
             $url = Socialite::driver('google')
                 ->stateless()
                 ->redirect()
@@ -24,7 +34,9 @@ class GoogleAuthController extends Controller
 
             return response()->json([
                 'url' => $url
-            ]);
+            ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+              ->header('Pragma', 'no-cache')
+              ->header('Expires', '0');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to generate Google auth URL',
@@ -58,13 +70,31 @@ class GoogleAuthController extends Controller
                     $user->save();
                 }
             } else {
+                // User doesn't exist - check if registration is allowed
+                $mode = session('google_oauth_mode', 'login');
+                
+                if ($mode === 'login') {
+                    // Login mode - do NOT create new account
+                    session()->forget(['google_oauth_role', 'google_oauth_mode']);
+                    
+                    $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+                    $errorUrl = $frontendUrl . '/?error=account_not_found&message=' . urlencode('No account found with this Google email. Please register first.');
+                    return redirect($errorUrl);
+                }
+                
+                // Register mode - create new user
+                $role = session('google_oauth_role', 'renter');
+                
+                // Clear sessions after using them
+                session()->forget(['google_oauth_role', 'google_oauth_mode']);
+                
                 // Create new user with Google info
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
                     'avatar' => $googleUser->avatar,
-                    'role' => 'renter', // Default role for new users
+                    'role' => $role, // Use role from session
                     'email_verified_at' => now(), // Google emails are pre-verified
                     'password' => null, // No password for Google-only users
                 ]);
@@ -98,6 +128,9 @@ class GoogleAuthController extends Controller
             return redirect($callbackUrl . '?' . $queryParams);
 
         } catch (\Exception $e) {
+            // Clear sessions on error
+            session()->forget(['google_oauth_role', 'google_oauth_mode']);
+            
             // Redirect to frontend with error
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
             $errorUrl = $frontendUrl . '/?error=google_auth_failed&message=' . urlencode($e->getMessage());
