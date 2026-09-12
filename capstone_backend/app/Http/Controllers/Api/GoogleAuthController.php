@@ -17,18 +17,19 @@ class GoogleAuthController extends Controller
     public function redirectToGoogle(Request $request)
     {
         try {
-            // Store role in session if provided (from registration page)
-            if ($request->has('role')) {
-                session(['google_oauth_role' => $request->input('role')]);
-            }
+            // Get role and mode from request
+            $role = $request->input('role', 'renter');
+            $mode = $request->input('mode', 'login');
             
-            // Store mode in session ('register' or 'login')
-            if ($request->has('mode')) {
-                session(['google_oauth_mode' => $request->input('mode')]);
-            }
+            // Encode role and mode into state parameter
+            $state = base64_encode(json_encode([
+                'role' => $role,
+                'mode' => $mode,
+            ]));
             
             $url = Socialite::driver('google')
                 ->stateless()
+                ->with(['state' => $state])
                 ->redirect()
                 ->getTargetUrl();
 
@@ -51,6 +52,13 @@ class GoogleAuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
+            // Get and decode state parameter
+            $stateParam = $request->input('state');
+            $state = json_decode(base64_decode($stateParam), true);
+            
+            $mode = $state['mode'] ?? 'login';
+            $role = $state['role'] ?? 'renter';
+            
             // Get user info from Google
             $googleUser = Socialite::driver('google')->stateless()->user();
 
@@ -71,30 +79,21 @@ class GoogleAuthController extends Controller
                 }
             } else {
                 // User doesn't exist - check if registration is allowed
-                $mode = session('google_oauth_mode', 'login');
-                
                 if ($mode === 'login') {
                     // Login mode - do NOT create new account
-                    session()->forget(['google_oauth_role', 'google_oauth_mode']);
-                    
-                    $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+                    $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
                     $errorUrl = $frontendUrl . '/?error=account_not_found&message=' . urlencode('No account found with this Google email. Please register first.');
                     return redirect($errorUrl);
                 }
                 
                 // Register mode - create new user
-                $role = session('google_oauth_role', 'renter');
-                
-                // Clear sessions after using them
-                session()->forget(['google_oauth_role', 'google_oauth_mode']);
-                
                 // Create new user with Google info
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
                     'avatar' => $googleUser->avatar,
-                    'role' => $role, // Use role from session
+                    'role' => $role, // Use role from state parameter
                     'email_verified_at' => now(), // Google emails are pre-verified
                     'password' => null, // No password for Google-only users
                 ]);
@@ -114,7 +113,7 @@ class GoogleAuthController extends Controller
             ];
 
             // Build frontend callback URL with data
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+            $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
             $callbackUrl = $frontendUrl . '/auth/google/callback';
             
             // Encode data as query parameters
@@ -128,11 +127,8 @@ class GoogleAuthController extends Controller
             return redirect($callbackUrl . '?' . $queryParams);
 
         } catch (\Exception $e) {
-            // Clear sessions on error
-            session()->forget(['google_oauth_role', 'google_oauth_mode']);
-            
             // Redirect to frontend with error
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+            $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
             $errorUrl = $frontendUrl . '/?error=google_auth_failed&message=' . urlencode($e->getMessage());
             return redirect($errorUrl);
         }
