@@ -66,11 +66,18 @@ class EquipmentController extends Controller
      */
     public function myEquipment(Request $request): JsonResponse
     {
-        $equipment = $request->user()
+        $query = $request->user()
             ->equipment()
             ->whereNull('archived_at')
-            ->latest()
-            ->paginate(15);
+            ->latest();
+
+        // Return all equipment if 'all' parameter is true
+        if ($request->boolean('all')) {
+            return response()->json($query->get());
+        }
+
+        // Otherwise return paginated
+        $equipment = $query->paginate(15);
 
         return response()->json($equipment);
     }
