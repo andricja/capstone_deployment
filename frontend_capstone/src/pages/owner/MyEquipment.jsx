@@ -99,11 +99,18 @@ export default function MyEquipment() {
   const handleBarangayChange = (selectedBarangay) => {
     setForm(prev => ({ ...prev, barangay: selectedBarangay }));
     
-    if (form.municipality && selectedBarangay) {
+    // Only fetch barangay coordinates if user hasn't manually set coordinates yet
+    // Check if coordinates are empty or still at default/unset values
+    const hasUserSetCoordinates = form.latitude && form.longitude && 
+                                   parseFloat(form.latitude) !== 0 && 
+                                   parseFloat(form.longitude) !== 0;
+    
+    if (form.municipality && selectedBarangay && !hasUserSetCoordinates) {
       const url = `/addresses/municipalities/${encodeURIComponent(form.municipality)}/barangays/${encodeURIComponent(selectedBarangay)}/coordinates`;
       api.get(url)
         .then(res => {
           if (res.data.latitude && res.data.longitude) {
+            console.log('Auto-filling coordinates from barangay:', res.data);
             setForm(prev => ({
               ...prev,
               latitude: String(res.data.latitude),
@@ -111,7 +118,12 @@ export default function MyEquipment() {
             }));
           }
         })
-        .catch(err => console.error('API Error:', err));
+        .catch(err => {
+          // Silently fail - coordinates will need to be set manually
+          console.log('No coordinates available for this barangay, user must set manually');
+        });
+    } else if (hasUserSetCoordinates) {
+      console.log('User has already set coordinates, preserving them:', form.latitude, form.longitude);
     }
   };
 
