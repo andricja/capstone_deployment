@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
+import api from '../lib/api';
 
 const HEADER_H = 'h-14'; // shared height token
 const HEADER_PX = '56px';
@@ -22,7 +23,26 @@ export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [pendingCounts, setPendingCounts] = useState({});
   const dropdownRef = useRef(null);
+
+  // Fetch pending counts
+  useEffect(() => {
+    const fetchPendingCounts = async () => {
+      if (!user) return;
+      try {
+        const response = await api.get('/pending-counts');
+        setPendingCounts(response.data);
+      } catch (error) {
+        console.error('Failed to fetch pending counts:', error);
+      }
+    };
+
+    fetchPendingCounts();
+    // Refresh counts every 30 seconds
+    const interval = setInterval(fetchPendingCounts, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,7 +61,7 @@ export default function Sidebar() {
     navigate('/');
   };
 
-  const navLinks = getNavLinks(user?.role);
+  const navLinks = getNavLinks(user?.role, pendingCounts);
   const isActive = (path) => location.pathname === path;
 
   // Derive breadcrumb from current route
@@ -166,7 +186,13 @@ export default function Sidebar() {
               }`}
             >
               <span className="text-lg">{link.icon}</span>
-              {link.label}
+              <span className="flex-1">{link.label}</span>
+              {/* Red badge for pending items */}
+              {link.badge > 0 && (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                  {link.badge > 99 ? '99+' : link.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -189,7 +215,7 @@ export default function Sidebar() {
   );
 }
 
-function getNavLinks(role) {
+function getNavLinks(role, pendingCounts = {}) {
   if (!role) return [];
   switch (role) {
     case 'renter':
@@ -204,15 +230,15 @@ function getNavLinks(role) {
     case 'owner':
       return [
         { to: '/owner/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
-        { to: '/owner/equipment', label: 'My Equipment & Rentals', icon: <Package className="w-5 h-5" /> },
+        { to: '/owner/equipment', label: 'My Equipment & Rentals', icon: <Package className="w-5 h-5" />, badge: pendingCounts.pending_rentals || 0 },
         { to: '/owner/sales', label: 'Sales', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/owner/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     case 'admin':
       return [
         { to: '/admin/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
-        { to: '/admin/owners', label: 'Owners & Equipment', icon: <Users className="w-5 h-5" /> },
-        { to: '/admin/rentals', label: 'Rental Management', icon: <ClipboardList className="w-5 h-5" /> },
+        { to: '/admin/owners', label: 'Owners & Equipment', icon: <Users className="w-5 h-5" />, badge: (pendingCounts.pending_owners || 0) + (pendingCounts.pending_equipment || 0) },
+        { to: '/admin/rentals', label: 'Rental Management', icon: <ClipboardList className="w-5 h-5" />, badge: pendingCounts.pending_rentals || 0 },
         { to: '/admin/payments', label: 'Payment Tracker', icon: <DollarSign className="w-5 h-5" /> },
         { to: '/admin/sales', label: 'Sales & Revenue', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/admin/messages', label: 'Messages', icon: <Mail className="w-5 h-5" /> },

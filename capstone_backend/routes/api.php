@@ -75,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user',    [AuthController::class, 'user']);
+    Route::get('/pending-counts', [AuthController::class, 'pendingCounts']);
 
     // Google Auth - Link/Unlink
     Route::post('/auth/google/link', [GoogleAuthController::class, 'linkGoogleAccount']);

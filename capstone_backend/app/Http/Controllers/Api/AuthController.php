@@ -468,6 +468,46 @@ class AuthController extends Controller
     /* ================================================================== */
 
     /**
+     * Get counts of pending items for badge indicators
+     */
+    public function pendingCounts(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $counts = [];
+
+        if ($user->role === 'admin') {
+            // Pending owner approvals
+            $counts['pending_owners'] = User::where('role', 'owner')
+                ->where('account_status', 'email_verified')
+                ->whereNull('archived_at')
+                ->count();
+            
+            // Pending equipment approvals
+            $counts['pending_equipment'] = Equipment::where('status', 'pending')
+                ->whereNull('archived_at')
+                ->count();
+            
+            // Pending rental requests
+            $counts['pending_rentals'] = RentalRequest::where('status', 'pending')
+                ->whereNull('archived_at')
+                ->count();
+        } elseif ($user->role === 'owner') {
+            // New rental requests for owner's equipment
+            $counts['pending_rentals'] = RentalRequest::whereHas('equipment', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->where('status', 'pending')
+                ->whereNull('archived_at')
+                ->count();
+        } elseif ($user->role === 'renter') {
+            // Renter doesn't have pending counts for now
+            $counts['pending_rentals'] = 0;
+        }
+
+        return response()->json($counts);
+    }
+
+    /**
      * Update authenticated user's profile (name & email).
      */
     public function updateProfile(Request $request): JsonResponse
