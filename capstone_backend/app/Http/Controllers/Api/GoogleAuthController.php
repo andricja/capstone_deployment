@@ -90,21 +90,27 @@ class GoogleAuthController extends Controller
                 if ($mode === 'login') {
                     // Login mode - do NOT create new account
                     $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-                    $errorUrl = $frontendUrl . '/?error=account_not_found&message=' . urlencode('No account found with this Google email. Please register first.');
+                    $errorUrl = $frontendUrl . '/auth/google/callback?error=account_not_found&message=' . urlencode('No account found with this Google email. Please register first.');
                     return redirect($errorUrl);
                 }
                 
                 // Register mode - create new user
-                // Create new user with Google info
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
                     'avatar' => $googleUser->avatar,
-                    'role' => $role, // Use role from state parameter
+                    'role' => $role, // Use role from cache
                     'email_verified_at' => now(), // Google emails are pre-verified
                     'password' => null, // No password for Google-only users
                 ]);
+                
+                // If registering as owner, don't auto-login - require admin approval
+                if ($role === 'owner') {
+                    $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                    $successUrl = $frontendUrl . '/auth/google/callback?error=pending_approval&needs_approval=true&message=' . urlencode('Registration successful! Your account is pending admin approval. You will be notified once approved.');
+                    return redirect($successUrl);
+                }
             }
 
             // Generate authentication token

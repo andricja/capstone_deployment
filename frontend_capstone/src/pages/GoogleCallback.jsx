@@ -15,6 +15,24 @@ export default function GoogleCallback() {
         console.log('GoogleCallback: Processing callback...');
         console.log('URL params:', window.location.href);
         
+        // Check for error parameters first
+        const error = searchParams.get('error');
+        const message = searchParams.get('message');
+        const needsApproval = searchParams.get('needs_approval');
+        
+        if (error) {
+          console.error('OAuth error:', error, message);
+          
+          if (needsApproval === 'true') {
+            toast.success(message || 'Registration successful! Please wait for admin approval before logging in.');
+          } else {
+            toast.error(message || 'Authentication failed. Please try again.');
+          }
+          
+          navigate('/');
+          return;
+        }
+        
         // Get data from query parameters (sent by backend)
         const success = searchParams.get('success');
         const token = searchParams.get('token');
@@ -51,7 +69,7 @@ export default function GoogleCallback() {
         console.error('Google callback error:', error);
         console.error('Error details:', error.message, error.stack);
         toast.error('Failed to sign in with Google. Please try again.');
-        navigate('/?error=google_auth_failed');
+        navigate('/');
       }
     };
 
