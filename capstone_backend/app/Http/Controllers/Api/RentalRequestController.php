@@ -197,7 +197,7 @@ class RentalRequestController extends Controller
         $equipment->status = 'rented';
         $equipment->save();
 
-        $rentalRequest->load('equipment.owner', 'user');
+        $rentalRequest->load('equipment.owner', 'renter');
 
         // Send notification to equipment owner about new rental request
         try {
@@ -275,7 +275,7 @@ class RentalRequestController extends Controller
         });
 
         // Load relationships for notification
-        $rentalRequest->load('user', 'equipment.owner');
+        $rentalRequest->load('renter', 'equipment.owner');
 
         // Send notification to renter about approval
         try {
@@ -322,7 +322,7 @@ class RentalRequestController extends Controller
         });
 
         // Load relationships for notification
-        $rentalRequest->load('user', 'equipment.owner');
+        $rentalRequest->load('renter', 'equipment.owner');
 
         // Send notification to renter about rejection
         try {

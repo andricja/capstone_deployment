@@ -247,7 +247,7 @@ class NotificationService
     public function notifyNewRentalRequest($rentalRequest): array
     {
         $owner = $rentalRequest->equipment->owner;
-        $renter = $rentalRequest->user;
+        $renter = $rentalRequest->renter;
         
         return $this->sendToUser($owner, [
             'title' => '🔔 New Rental Request',
@@ -266,7 +266,7 @@ class NotificationService
      */
     public function notifyRentalApproved($rentalRequest): array
     {
-        $renter = $rentalRequest->user;
+        $renter = $rentalRequest->renter;
         
         return $this->sendToUser($renter, [
             'title' => '✅ Rental Approved!',
@@ -285,7 +285,7 @@ class NotificationService
      */
     public function notifyRentalRejected($rentalRequest): array
     {
-        $renter = $rentalRequest->user;
+        $renter = $rentalRequest->renter;
         $reason = $rentalRequest->rejection_reason ?? 'No reason provided';
         
         return $this->sendToUser($renter, [
@@ -306,7 +306,7 @@ class NotificationService
     public function notifyPaymentReceived($rentalRequest): array
     {
         $owner = $rentalRequest->equipment->owner;
-        $renter = $rentalRequest->user;
+        $renter = $rentalRequest->renter;
         
         return $this->sendToUser($owner, [
             'title' => '💰 Payment Received',
@@ -325,7 +325,7 @@ class NotificationService
      */
     public function notifyPaymentVerified($rentalRequest): array
     {
-        $renter = $rentalRequest->user;
+        $renter = $rentalRequest->renter;
         
         return $this->sendToUser($renter, [
             'title' => '✅ Payment Verified',
