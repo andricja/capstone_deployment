@@ -102,6 +102,7 @@ class GoogleAuthController extends Controller
                     'avatar' => $googleUser->avatar,
                     'role' => $role, // Use role from cache
                     'email_verified_at' => now(), // Google emails are pre-verified
+                    'account_status' => $role === 'owner' ? 'email_verified' : 'approved', // Owners need admin approval
                     'password' => null, // No password for Google-only users
                 ]);
                 

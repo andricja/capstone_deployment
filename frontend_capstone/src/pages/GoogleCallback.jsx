@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
@@ -8,8 +8,13 @@ export default function GoogleCallback() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
   const toast = useToast();
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
+    // Prevent duplicate processing
+    if (hasProcessed.current) return;
+    hasProcessed.current = true;
+
     const handleCallback = async () => {
       try {
         console.log('GoogleCallback: Processing callback...');
