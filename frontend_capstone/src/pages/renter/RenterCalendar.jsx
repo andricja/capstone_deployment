@@ -32,7 +32,14 @@ export default function RenterCalendar() {
         params: { start, end },
       });
       
-      setEvents(response.data);
+      // Convert date strings to Date objects for react-big-calendar
+      const formattedEvents = response.data.map(event => ({
+        ...event,
+        start: new Date(event.start),
+        end: new Date(event.end),
+      }));
+      
+      setEvents(formattedEvents);
     } catch (error) {
       toast.error('Failed to load calendar events');
       console.error(error);

@@ -51,7 +51,15 @@ export default function OwnerCalendar() {
       console.log('Fetching owner calendar events:', params);
       const response = await api.get('/owner/calendar/events', { params });
       console.log('Owner calendar events received:', response.data);
-      setEvents(response.data);
+      
+      // Convert date strings to Date objects for react-big-calendar
+      const formattedEvents = response.data.map(event => ({
+        ...event,
+        start: new Date(event.start),
+        end: new Date(event.end),
+      }));
+      
+      setEvents(formattedEvents);
     } catch (error) {
       console.error('Failed to load calendar events:', error);
       console.error('Error response:', error.response?.data);
