@@ -246,7 +246,7 @@ class NotificationService
      */
     public function notifyNewRentalRequest($rentalRequest): array
     {
-        $owner = $rentalRequest->equipment->user;
+        $owner = $rentalRequest->equipment->owner;
         $renter = $rentalRequest->user;
         
         return $this->sendToUser($owner, [
@@ -305,7 +305,7 @@ class NotificationService
      */
     public function notifyPaymentReceived($rentalRequest): array
     {
-        $owner = $rentalRequest->equipment->user;
+        $owner = $rentalRequest->equipment->owner;
         $renter = $rentalRequest->user;
         
         return $this->sendToUser($owner, [

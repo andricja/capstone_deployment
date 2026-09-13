@@ -197,7 +197,7 @@ class RentalRequestController extends Controller
         $equipment->status = 'rented';
         $equipment->save();
 
-        $rentalRequest->load('equipment:id,name,category,price_per_hectare,location,latitude,longitude');
+        $rentalRequest->load('equipment.owner', 'user');
 
         // Send notification to equipment owner about new rental request
         try {
