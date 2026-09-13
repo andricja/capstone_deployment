@@ -494,9 +494,9 @@ class AuthController extends Controller
         } elseif ($user->role === 'owner') {
             // New rental requests for owner's equipment
             $counts['pending_rentals'] = RentalRequest::whereHas('equipment', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                    $q->where('owner_id', $user->id);
                 })
-                ->where('status', 'pending')
+                ->where('status', 'forwarded')
                 ->whereNull('archived_at')
                 ->count();
         } elseif ($user->role === 'renter') {
