@@ -281,8 +281,6 @@ class EquipmentController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to send equipment approval notification: ' . $e->getMessage());
         }
-            \Log::error('Failed to send equipment approved notification', ['error' => $e->getMessage()]);
-        }
 
         $equipment->load('owner:id,name,email');
 
