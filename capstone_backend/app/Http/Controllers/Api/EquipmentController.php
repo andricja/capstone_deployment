@@ -275,7 +275,7 @@ class EquipmentController extends Controller
 
         // Send notification to owner about equipment approval
         try {
-            $equipment->load('user'); // Load the owner relationship
+            $equipment->load('owner'); // Load the owner relationship
             $notificationService = app(\App\Services\NotificationService::class);
             $notificationService->notifyEquipmentApproved($equipment);
         } catch (\Exception $e) {

@@ -344,7 +344,7 @@ class NotificationService
      */
     public function notifyEquipmentApproved($equipment): array
     {
-        $owner = $equipment->user;
+        $owner = $equipment->owner;
         
         return $this->sendToUser($owner, [
             'title' => '✅ Equipment Approved',
@@ -362,7 +362,7 @@ class NotificationService
      */
     public function notifyEquipmentRejected($equipment): array
     {
-        $owner = $equipment->user;
+        $owner = $equipment->owner;
         
         return $this->sendToUser($owner, [
             'title' => '❌ Equipment Rejected',
