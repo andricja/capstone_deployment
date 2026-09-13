@@ -28,6 +28,13 @@ export default function GoogleCallback() {
         if (error) {
           console.error('OAuth error:', error, message);
           
+          // Registration success cases (not actually errors, but using error param for routing)
+          if (error === 'registration_success') {
+            toast.success(message || 'Registration successful! Please login to continue.');
+            navigate('/');
+            return;
+          }
+          
           if (needsApproval === 'true') {
             toast.success(message || 'Registration successful! Please wait for admin approval before logging in.');
           } else {

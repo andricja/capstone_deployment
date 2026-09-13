@@ -102,14 +102,21 @@ class GoogleAuthController extends Controller
                     'avatar' => $googleUser->avatar,
                     'role' => $role, // Use role from cache
                     'email_verified_at' => now(), // Google emails are pre-verified
-                    'account_status' => $role === 'owner' ? 'email_verified' : 'approved', // Owners need admin approval
+                    'account_status' => $role === 'owner' ? 'email_verified' : 'approved', // Owners need admin approval, renters are approved
                     'password' => null, // No password for Google-only users
                 ]);
                 
                 // If registering as owner, don't auto-login - require admin approval
                 if ($role === 'owner') {
                     $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-                    $successUrl = $frontendUrl . '/auth/google/callback?error=pending_approval&needs_approval=true&message=' . urlencode('Registration successful! Your account is pending admin approval. You will be notified once approved.');
+                    $successUrl = $frontendUrl . '/auth/google/callback?error=registration_success&message=' . urlencode('Registration successful! Your account is pending admin approval. You will be notified once approved.');
+                    return redirect($successUrl);
+                }
+                
+                // If registering as renter, don't auto-login - redirect to login
+                if ($role === 'renter') {
+                    $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                    $successUrl = $frontendUrl . '/auth/google/callback?error=registration_success&message=' . urlencode('Registration successful! Please login to continue.');
                     return redirect($successUrl);
                 }
             }
