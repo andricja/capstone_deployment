@@ -40,6 +40,9 @@ export default function LocationPicker({ latitude, longitude, onChange, label = 
   // Track if position was set by user click or by props
   const userClickedRef = useRef(false);
   
+  // State for fullscreen mode
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
   // Initialize position from props
   const getInitialPosition = () => {
     if (latitude && longitude) {
@@ -96,9 +99,21 @@ export default function LocationPicker({ latitude, longitude, onChange, label = 
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label} <span className="text-red-500">*</span>
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label} <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setIsFullscreen(true)}
+          className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+          View Fullscreen
+        </button>
+      </div>
       
       <div className="border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
         <MapContainer
@@ -125,6 +140,43 @@ export default function LocationPicker({ latitude, longitude, onChange, label = 
       <p className="text-xs text-blue-600 dark:text-blue-400">
         📍 Click anywhere on the map to set your location. This will be used for transportation fee calculation.
       </p>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex flex-col">
+          <div className="flex items-center justify-between p-4 bg-gray-900">
+            <h3 className="text-white text-lg font-semibold">Select Location on Map</h3>
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="text-white hover:text-gray-300 p-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1">
+            <MapContainer
+              center={position || defaultCenter}
+              zoom={15}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={true}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <RecenterMap position={position} />
+              <LocationMarker position={position} setPosition={handlePositionChange} />
+            </MapContainer>
+          </div>
+          {position && (
+            <div className="p-4 bg-gray-900 text-white text-center">
+              <span className="font-medium">Selected:</span> {position[0].toFixed(6)}, {position[1].toFixed(6)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
