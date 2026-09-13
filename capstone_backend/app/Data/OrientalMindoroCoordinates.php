@@ -16,6 +16,7 @@ class OrientalMindoroCoordinates
             'Bongabong' => ['latitude' => 12.7167, 'longitude' => 121.3833],
             'Bulalacao' => ['latitude' => 12.3333, 'longitude' => 121.3500],
             'Calapan' => ['latitude' => 13.4119, 'longitude' => 121.1803],
+            'Calapan City' => ['latitude' => 13.4119, 'longitude' => 121.1803], // Alias for Calapan
             'Gloria' => ['latitude' => 12.9833, 'longitude' => 121.4667],
             'Mansalay' => ['latitude' => 12.5167, 'longitude' => 121.4500],
             'Naujan' => ['latitude' => 13.3167, 'longitude' => 121.3000],
@@ -62,6 +63,7 @@ class OrientalMindoroCoordinates
             'Bongabong' => ['latitude' => 12.7167, 'longitude' => 121.3833],
             'Bulalacao' => ['latitude' => 12.3333, 'longitude' => 121.3500],
             'Calapan' => ['latitude' => 13.4119, 'longitude' => 121.1803],
+            'Calapan City' => ['latitude' => 13.4119, 'longitude' => 121.1803],
             'Gloria' => ['latitude' => 12.9833, 'longitude' => 121.4667],
             'Mansalay' => ['latitude' => 12.5167, 'longitude' => 121.4500],
             'Naujan' => ['latitude' => 13.3167, 'longitude' => 121.3000],
