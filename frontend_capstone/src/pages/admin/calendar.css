@@ -32,25 +32,47 @@
 }
 
 .rbc-toolbar {
-  @apply flex flex-wrap items-center justify-between mb-4 gap-2;
+  @apply flex flex-wrap items-center justify-between mb-4 gap-3 p-2;
 }
 
 .rbc-toolbar button {
-  @apply px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-sm font-medium;
+  @apply px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 text-sm font-medium transition-colors shadow-sm;
 }
 
 .rbc-toolbar button:active,
 .rbc-toolbar button.rbc-active {
-  @apply bg-green-600 text-white border-green-600 dark:bg-green-700 dark:border-green-700;
+  @apply bg-green-600 text-white border-green-600 dark:bg-green-600 dark:border-green-600 shadow-md;
 }
 
 .rbc-toolbar button:active:hover,
 .rbc-toolbar button.rbc-active:hover {
-  @apply bg-green-700 dark:bg-green-800;
+  @apply bg-green-700 dark:bg-green-700 shadow-lg;
 }
 
 .rbc-toolbar-label {
-  @apply text-lg font-bold text-gray-900 dark:text-white;
+  @apply text-xl font-bold text-gray-900 dark:text-white px-4;
+}
+
+/* Navigation buttons group */
+.rbc-btn-group {
+  @apply flex gap-1;
+}
+
+.rbc-btn-group button {
+  @apply rounded-lg;
+}
+
+.rbc-btn-group button:first-child {
+  @apply rounded-l-lg;
+}
+
+.rbc-btn-group button:last-child {
+  @apply rounded-r-lg;
+}
+
+/* Today button special styling */
+.rbc-toolbar button:first-child {
+  @apply bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 font-semibold hover:bg-green-100 dark:hover:bg-green-900/30;
 }
 
 .rbc-date-cell {
