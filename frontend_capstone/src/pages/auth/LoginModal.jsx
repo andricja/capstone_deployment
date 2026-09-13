@@ -8,6 +8,7 @@ export default function LoginModal({ open, onClose, onSwitchToRegister, onVerify
   const { login } = useAuth();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
@@ -15,18 +16,28 @@ export default function LoginModal({ open, onClose, onSwitchToRegister, onVerify
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsPendingApproval(false);
     setLoading(true);
     try {
       await login(form.email, form.password);
       onClose();
     } catch (err) {
       const data = err.response?.data;
+      
+      // Handle email verification required
       if (data?.requires_verification && onVerifyEmail) {
         onVerifyEmail(data.email || form.email);
         onClose();
         return;
       }
-      setError(data?.message || 'Login failed. Please try again.');
+      
+      // Handle pending admin approval
+      if (data?.pending_approval) {
+        setIsPendingApproval(true);
+        setError(data?.message || 'Your account is awaiting admin approval. You will be notified once approved.');
+      } else {
+        setError(data?.message || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,7 +58,11 @@ export default function LoginModal({ open, onClose, onSwitchToRegister, onVerify
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className={`border px-4 py-3 rounded-lg mb-4 text-sm ${
+            isPendingApproval 
+              ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400' 
+              : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400'
+          }`}>
             {error}
           </div>
         )}
