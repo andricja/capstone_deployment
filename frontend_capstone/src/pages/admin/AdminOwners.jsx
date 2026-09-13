@@ -73,6 +73,10 @@ export default function AdminOwners() {
     }
   }, [activeTab, equipmentFilter]);
 
+  // Calculate pending counts for red dots
+  const pendingOwnersCount = data.filter(owner => owner.account_status === 'email_verified').length;
+  const pendingEquipmentCount = equipmentData.filter(eq => eq.status === 'pending').length;
+
   // ================ EQUIPMENT APPROVALS FUNCTIONS ================
   const fetchEquipment = (f = equipmentFilter) => {
     setEquipmentLoading(true);
@@ -262,7 +266,7 @@ export default function AdminOwners() {
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('owners')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative ${
               activeTab === 'owners'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -270,10 +274,17 @@ export default function AdminOwners() {
           >
             <Users className="w-4 h-4" />
             Equipment Owners
+            {/* Red dot indicator for pending owners */}
+            {pendingOwnersCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('equipment')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative ${
               activeTab === 'equipment'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -281,6 +292,13 @@ export default function AdminOwners() {
           >
             <ListFilter className="w-4 h-4" />
             Equipment Approvals
+            {/* Red dot indicator for pending equipment */}
+            {pendingEquipmentCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+            )}
           </button>
         </div>
       </div>
