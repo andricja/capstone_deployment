@@ -366,7 +366,7 @@ export default function MyEquipment() {
 
   const fetchMyEquipmentList = async () => {
     try {
-      const response = await api.get('/owner/equipments', { params: { all: true } });
+      const response = await api.get('/owner/equipment', { params: { all: true } });
       setMyEquipment(response.data);
     } catch (error) {
       console.error('Failed to fetch equipment:', error);
