@@ -176,6 +176,34 @@ export default function AdminOwners() {
     }
   };
 
+  const handleApproveOwner = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('Approve this owner account? They will be able to login.')) return;
+    try {
+      await api.patch(`/admin/owners/${id}/approve`);
+      toast.success('Owner account approved successfully.');
+      fetchOwners();
+      fetchStats();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve owner.');
+    }
+  };
+
+  const handleRejectOwner = async (id, e) => {
+    e?.stopPropagation();
+    const reason = prompt('Enter rejection reason (optional):');
+    if (reason === null) return; // User cancelled
+    
+    try {
+      await api.patch(`/admin/owners/${id}/reject`, { reason: reason || undefined });
+      toast.success('Owner account rejected.');
+      fetchOwners();
+      fetchStats();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject owner.');
+    }
+  };
+
   const handleFormChange = (e) => {
     const { name, value, files } = e.target;
     setForm((prev) => ({ ...prev, [name]: files ? files[0] : value }));
@@ -320,6 +348,24 @@ export default function AdminOwners() {
               onClick={() => openDetail(owner)}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-5 hover:shadow-lg transition-all cursor-pointer"
             >
+              {/* Account Status Badge */}
+              {owner.account_status === 'email_verified' && (
+                <div className="mb-3">
+                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Clock className="w-3 h-3" />
+                    Pending Approval
+                  </span>
+                </div>
+              )}
+              {owner.account_status === 'rejected' && (
+                <div className="mb-3">
+                  <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <X className="w-3 h-3" />
+                    Rejected
+                  </span>
+                </div>
+              )}
+              
               {/* Avatar + Name */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center text-green-700 font-bold text-lg">
@@ -348,7 +394,27 @@ export default function AdminOwners() {
                 </div>
               </div>
 
-              {/* Joined date + Add button */}
+              {/* Actions row - Approve/Reject buttons for pending owners */}
+              {owner.account_status === 'email_verified' && (
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={(e) => handleApproveOwner(owner.id, e)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={(e) => handleRejectOwner(owner.id, e)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Reject
+                  </button>
+                </div>
+              )}
+
+              {/* Joined date + Archive/Add button */}
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                   <Calendar className="w-3.5 h-3.5" />
@@ -367,14 +433,16 @@ export default function AdminOwners() {
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   </Tooltip>
-                  <Tooltip text="Add Equipment">
-                    <button
-                      onClick={(e) => openModal(owner, e)}
-                      className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </Tooltip>
+                  {owner.account_status === 'approved' && (
+                    <Tooltip text="Add Equipment">
+                      <button
+                        onClick={(e) => openModal(owner, e)}
+                        className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
               </div>
             </div>
@@ -403,6 +471,22 @@ export default function AdminOwners() {
               ),
             },
             { key: 'email', label: 'Email', render: (row) => <span className="text-gray-500 dark:text-gray-400">{row.email}</span> },
+            {
+              key: 'account_status',
+              label: 'Status',
+              align: 'center',
+              render: (row) => {
+                if (row.account_status === 'approved') {
+                  return <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-semibold"><CheckCircle className="w-3 h-3" />Approved</span>;
+                } else if (row.account_status === 'email_verified') {
+                  return <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-semibold"><Clock className="w-3 h-3" />Pending</span>;
+                } else if (row.account_status === 'rejected') {
+                  return <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-semibold"><X className="w-3 h-3" />Rejected</span>;
+                }
+                return <span className="text-gray-400">—</span>;
+              },
+              sortValue: (row) => row.account_status,
+            },
             {
               key: 'equipment_count',
               label: 'Equipment',
@@ -438,6 +522,26 @@ export default function AdminOwners() {
               sortable: false,
               render: (row) => (
                 <div className="flex items-center justify-center gap-1.5">
+                  {row.account_status === 'email_verified' && (
+                    <>
+                      <Tooltip text="Approve">
+                        <button
+                          onClick={(e) => handleApproveOwner(row.id, e)}
+                          className="p-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Reject">
+                        <button
+                          onClick={(e) => handleRejectOwner(row.id, e)}
+                          className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
                   <Tooltip text={row.archived_at ? 'Unarchive' : 'Archive'}>
                     <button
                       onClick={(e) => handleArchive(row.id, e)}
@@ -450,14 +554,16 @@ export default function AdminOwners() {
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   </Tooltip>
-                  <Tooltip text="Add Equipment">
-                    <button
-                      onClick={(e) => openModal(row, e)}
-                      className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </Tooltip>
+                  {row.account_status === 'approved' && (
+                    <Tooltip text="Add Equipment">
+                      <button
+                        onClick={(e) => openModal(row, e)}
+                        className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
               ),
             },

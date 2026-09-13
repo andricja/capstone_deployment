@@ -200,6 +200,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/owners/stats', [AuthController::class, 'ownerStats']);
         Route::get('/owners/charts', [AuthController::class, 'ownerChartData']);
         Route::get('/owners/{id}', [AuthController::class, 'ownerShow']);
+        Route::patch('/owners/{id}/approve', [AuthController::class, 'approveOwner']);
+        Route::patch('/owners/{id}/reject', [AuthController::class, 'rejectOwner']);
         Route::patch('/owners/{id}/archive', [AuthController::class, 'archiveOwner']);
         Route::post('/owners/{ownerId}/equipment', [EquipmentController::class, 'adminStore']);
 

@@ -246,6 +246,64 @@ class AuthController extends Controller
     }
 
     /**
+     * Approve an owner account (admin only).
+     */
+    public function approveOwner(int $id): JsonResponse
+    {
+        $owner = User::where('role', 'owner')->findOrFail($id);
+        
+        if ($owner->account_status === 'approved') {
+            return response()->json(['message' => 'Owner is already approved.'], 400);
+        }
+
+        $owner->update([
+            'account_status' => 'approved',
+            'admin_rejection_reason' => null,
+        ]);
+
+        // TODO: Send approval email notification
+        try {
+            // DynamicMailer::send(new AccountApproved($owner->name), $owner->email);
+        } catch (\Throwable $e) {
+            // Continue even if email fails
+        }
+
+        return response()->json([
+            'message' => 'Owner account approved successfully.',
+            'owner' => $owner,
+        ]);
+    }
+
+    /**
+     * Reject an owner account (admin only).
+     */
+    public function rejectOwner(int $id, Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $owner = User::where('role', 'owner')->findOrFail($id);
+
+        $owner->update([
+            'account_status' => 'rejected',
+            'admin_rejection_reason' => $validated['reason'] ?? 'Your account registration was rejected by the administrator.',
+        ]);
+
+        // TODO: Send rejection email notification
+        try {
+            // DynamicMailer::send(new AccountRejected($owner->name, $owner->admin_rejection_reason), $owner->email);
+        } catch (\Throwable $e) {
+            // Continue even if email fails
+        }
+
+        return response()->json([
+            'message' => 'Owner account rejected.',
+            'owner' => $owner,
+        ]);
+    }
+
+    /**
      * Toggle archive status on an owner (admin only).
      */
     public function archiveOwner(int $id): JsonResponse
@@ -267,6 +325,7 @@ class AuthController extends Controller
     {
         $owners = User::where('role', 'owner')
             ->whereNull('archived_at')
+            ->select('id', 'name', 'email', 'role', 'account_status', 'created_at', 'email_verified_at', 'admin_rejection_reason')
             ->withCount(['equipment', 'equipment as approved_equipment_count' => function ($q) {
                 $q->where('status', '!=', 'rejected');
             }])
