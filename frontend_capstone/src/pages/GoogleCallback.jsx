@@ -35,6 +35,34 @@ export default function GoogleCallback() {
             return;
           }
           
+          // Pending approval - show as warning/info, not error
+          if (error === 'pending_approval') {
+            toast.success(message || 'Your account is pending admin approval. You will be notified once approved.');
+            navigate('/');
+            return;
+          }
+          
+          // Account rejected
+          if (error === 'account_rejected') {
+            toast.error(message || 'Your account has been rejected. Please contact the administrator.');
+            navigate('/');
+            return;
+          }
+          
+          // Email verification required
+          if (error === 'verification_required') {
+            toast.error(message || 'Please verify your email first.');
+            navigate('/');
+            return;
+          }
+          
+          // Account not active
+          if (error === 'account_not_active') {
+            toast.error(message || 'Account not active. Please contact support.');
+            navigate('/');
+            return;
+          }
+          
           if (needsApproval === 'true') {
             toast.success(message || 'Registration successful! Please wait for admin approval before logging in.');
           } else {

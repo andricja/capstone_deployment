@@ -85,6 +85,33 @@ class GoogleAuthController extends Controller
                     $user->email_verified_at = now();
                     $user->save();
                 }
+                
+                // Check account status before allowing login (same checks as regular login)
+                if ($user->role !== 'admin') {
+                    if ($user->account_status === 'pending') {
+                        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                        $errorUrl = $frontendUrl . '/auth/google/callback?error=verification_required&message=' . urlencode('Please verify your email first.');
+                        return redirect($errorUrl);
+                    }
+
+                    if ($user->account_status === 'email_verified') {
+                        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                        $errorUrl = $frontendUrl . '/auth/google/callback?error=pending_approval&message=' . urlencode('Your account is pending admin approval. You will receive an email once approved.');
+                        return redirect($errorUrl);
+                    }
+
+                    if ($user->account_status === 'rejected') {
+                        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                        $errorUrl = $frontendUrl . '/auth/google/callback?error=account_rejected&message=' . urlencode('Your account has been rejected. Please contact the administrator.');
+                        return redirect($errorUrl);
+                    }
+
+                    if ($user->account_status !== 'approved') {
+                        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                        $errorUrl = $frontendUrl . '/auth/google/callback?error=account_not_active&message=' . urlencode('Account not active.');
+                        return redirect($errorUrl);
+                    }
+                }
             } else {
                 // User doesn't exist - check if registration is allowed
                 if ($mode === 'login') {
