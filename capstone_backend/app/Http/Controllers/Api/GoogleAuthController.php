@@ -21,15 +21,19 @@ class GoogleAuthController extends Controller
             $role = $request->input('role', 'renter');
             $mode = $request->input('mode', 'login');
             
-            // Encode role and mode into state parameter
-            $state = base64_encode(json_encode([
+            // Generate a unique key for this OAuth attempt
+            $oauthKey = 'google_oauth_' . uniqid() . '_' . time();
+            
+            // Store role and mode in cache for 10 minutes
+            \Cache::put($oauthKey, [
                 'role' => $role,
                 'mode' => $mode,
-            ]));
+            ], now()->addMinutes(10));
             
+            // Pass the key as part of the state parameter
             $url = Socialite::driver('google')
                 ->stateless()
-                ->with(['state' => $state])
+                ->with(['state' => $oauthKey])
                 ->redirect()
                 ->getTargetUrl();
 
@@ -52,12 +56,16 @@ class GoogleAuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
-            // Get and decode state parameter
-            $stateParam = $request->input('state');
-            $state = json_decode(base64_decode($stateParam), true);
+            // Get the oauth key from state parameter
+            $oauthKey = $request->input('state');
             
-            $mode = $state['mode'] ?? 'login';
-            $role = $state['role'] ?? 'renter';
+            // Retrieve role and mode from cache
+            $data = \Cache::get($oauthKey, ['mode' => 'login', 'role' => 'renter']);
+            $mode = $data['mode'];
+            $role = $data['role'];
+            
+            // Clear the cache entry
+            \Cache::forget($oauthKey);
             
             // Get user info from Google
             $googleUser = Socialite::driver('google')->stateless()->user();
