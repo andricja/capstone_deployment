@@ -274,6 +274,9 @@ class RentalRequestController extends Controller
             $rentalRequest->update(['status' => 'approved']);
         });
 
+        // Load relationships for notification
+        $rentalRequest->load('user', 'equipment.owner');
+
         // Send notification to renter about approval
         try {
             $notificationService = app(\App\Services\NotificationService::class);
@@ -317,6 +320,9 @@ class RentalRequestController extends Controller
                 'rejection_reason' => $validated['rejection_reason'] ?? 'Rejected by owner.',
             ]);
         });
+
+        // Load relationships for notification
+        $rentalRequest->load('user', 'equipment.owner');
 
         // Send notification to renter about rejection
         try {
