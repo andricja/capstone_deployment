@@ -275,9 +275,12 @@ class EquipmentController extends Controller
 
         // Send notification to owner about equipment approval
         try {
+            $equipment->load('user'); // Load the owner relationship
             $notificationService = app(\App\Services\NotificationService::class);
             $notificationService->notifyEquipmentApproved($equipment);
         } catch (\Exception $e) {
+            \Log::error('Failed to send equipment approval notification: ' . $e->getMessage());
+        }
             \Log::error('Failed to send equipment approved notification', ['error' => $e->getMessage()]);
         }
 
