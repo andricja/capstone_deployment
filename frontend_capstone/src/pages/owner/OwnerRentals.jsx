@@ -5,12 +5,15 @@ import StatusBadge from '../../components/StatusBadge';
 import { ListPageSkeleton } from '../../components/Skeleton';
 import { Check, X, Ruler, Clock, Calendar, Truck, MapPin, LayoutGrid, Table, Banknote, Archive } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
 
 export default function OwnerRentals() {
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   const [proofImage, setProofImage] = useState(null);
   const [viewMode, setViewMode] = useState('card'); // 'card' | 'table'
   const [statusFilter, setStatusFilter] = useState('all');
@@ -33,10 +36,17 @@ export default function OwnerRentals() {
   useEffect(() => { fetchAll(); }, []);
 
   const handleAction = async (id, action) => {
-    const confirmMsg = action === 'approve'
-      ? 'Approve this rental? Equipment will be marked as rented.'
-      : 'Reject this rental request?';
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await confirm({
+      title: action === 'approve' ? 'Approve Rental' : 'Reject Rental',
+      message: action === 'approve' 
+        ? 'Approve this rental? Equipment will be marked as rented.'
+        : 'Reject this rental request?',
+      confirmText: action === 'approve' ? 'Approve' : 'Reject',
+      cancelText: 'Cancel',
+      danger: action === 'reject'
+    });
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/owner/rental-requests/${id}/${action}`);
       toast.success(`Rental request ${action}d.`);
@@ -48,7 +58,14 @@ export default function OwnerRentals() {
 
   const handleArchive = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Archive this rental request?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Rental',
+      message: 'Archive this rental request?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/owner/archived/rentals/${id}`);
       toast.success('Rental archived.');
@@ -229,7 +246,13 @@ export default function OwnerRentals() {
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cost Breakdown</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Base Cost (₱{fmt(r.equipment?.daily_rate)} × {r.rental_days} day{r.rental_days > 1 ? 's' : ''})</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Base Cost 
+                      {r.equipment?.pricing_model === 'per_equipment' 
+                        ? ' (Flat Rate)' 
+                        : ` (₱${fmt(r.equipment?.price_per_hectare)} × ${r.rental_days} day${r.rental_days > 1 ? 's' : ''})`
+                      }
+                    </span>
                     <span className="font-medium dark:text-gray-200">₱{fmt(r.base_cost)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -509,7 +532,13 @@ export default function OwnerRentals() {
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cost Breakdown</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Base Cost (₱{fmt(selectedRow.equipment?.daily_rate)} × {selectedRow.rental_days} day{selectedRow.rental_days > 1 ? 's' : ''})</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Base Cost 
+                      {selectedRow.equipment?.pricing_model === 'per_equipment' 
+                        ? ' (Flat Rate)' 
+                        : ` (₱${fmt(selectedRow.equipment?.price_per_hectare)} × ${selectedRow.rental_days} day${selectedRow.rental_days > 1 ? 's' : ''})`
+                      }
+                    </span>
                     <span className="font-medium dark:text-gray-200">₱{fmt(selectedRow.base_cost)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -574,6 +603,18 @@ export default function OwnerRentals() {
         </div>,
         document.body
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

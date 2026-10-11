@@ -16,6 +16,8 @@ import RenterCalendar from './pages/renter/RenterCalendar';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyEquipment from './pages/owner/MyEquipment';
 import SalesDashboard from './pages/owner/SalesDashboard';
+import OwnerArchive from './pages/owner/OwnerArchive';
+import OwnerPaymentTracker from './pages/owner/OwnerPaymentTracker';
 
 
 // Admin pages
@@ -24,12 +26,14 @@ import AdminRentals from './pages/admin/AdminRentals';
 import AdminMessages from './pages/admin/AdminMessages';
 import AdminOwners from './pages/admin/AdminOwners';
 import ManageAds from './pages/admin/ManageAdsTemp';
-import PaymentTracker from './pages/admin/PaymentTracker';
 import SalesManagement from './pages/admin/SalesManagement';
+import ArchiveManagement from './pages/admin/ArchiveManagement';
 
 // Shared
 import AccountSettings from './pages/AccountSettings';
 import NotificationSettings from './pages/NotificationSettings';
+import DebugNotifications from './pages/DebugNotifications';
+import RenterArchive from './pages/renter/RenterArchive';
 
 // Misc
 import Unauthorized from './pages/Unauthorized';
@@ -52,6 +56,7 @@ export default function App() {
           <Route path="/renter/rentals" element={<MyRentals />} />
           <Route path="/renter/calendar" element={<RenterCalendar />} />
           <Route path="/renter/messages" element={<RenterMessages />} />
+          <Route path="/renter/archive" element={<RenterArchive />} />
           <Route path="/renter/settings" element={<AccountSettings />} />
           <Route path="/renter/notifications" element={<NotificationSettings />} />
         </Route>
@@ -63,10 +68,14 @@ export default function App() {
           <Route path="/owner/dashboard" element={<OwnerDashboard />} />
           <Route path="/owner/equipment" element={<MyEquipment />} />
           <Route path="/owner/sales" element={<SalesDashboard />} />
+          <Route path="/owner/payments" element={<OwnerPaymentTracker />} />
+          <Route path="/owner/archive" element={<OwnerArchive />} />
           <Route path="/owner/settings" element={<AccountSettings />} />
           <Route path="/owner/notifications" element={<NotificationSettings />} />
+          <Route path="/owner/debug-notifications" element={<DebugNotifications />} />
         </Route>
       </Route>
+
 
       {/* Admin routes */}
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
@@ -74,10 +83,10 @@ export default function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/owners" element={<AdminOwners />} />
           <Route path="/admin/rentals" element={<AdminRentals />} />
-          <Route path="/admin/payments" element={<PaymentTracker />} />
           <Route path="/admin/sales" element={<SalesManagement />} />
           <Route path="/admin/messages" element={<AdminMessages />} />
           <Route path="/admin/ads" element={<ManageAds />} />
+          <Route path="/admin/archive" element={<ArchiveManagement />} />
           <Route path="/admin/settings" element={<AccountSettings />} />
           <Route path="/admin/notifications" element={<NotificationSettings />} />
         </Route>

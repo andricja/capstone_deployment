@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
+import { Maximize2, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -152,6 +154,7 @@ export default function DualLocationPicker({
   const [routeDistance, setRouteDistance] = useState(null);
   const [routeType, setRouteType] = useState('straight');
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Calculate distance and fee
   // ALWAYS use straight-line distance (Haversine) to match backend calculation
@@ -248,7 +251,17 @@ export default function DualLocationPicker({
         Delivery Location (Click on Map) <span className="text-red-500">*</span>
       </label>
       
-      <div className="border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+      <div className="relative border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+        {/* Fullscreen button */}
+        <button
+          type="button"
+          onClick={() => setIsFullscreen(true)}
+          className="absolute top-3 right-3 z-[1000] bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 transition-colors"
+          title="Expand Map"
+        >
+          <Maximize2 className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+        </button>
+
         <MapContainer
           center={equipmentPosition}
           zoom={13}
@@ -258,6 +271,7 @@ export default function DualLocationPicker({
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            crossOrigin="anonymous"
           />
           
           {/* Equipment Location Marker (Fixed - Green) */}
@@ -306,6 +320,127 @@ export default function DualLocationPicker({
           />
         </MapContainer>
       </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && createPortal(
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl w-[95vw] h-[95vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-[1000] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Select Delivery Location
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Click anywhere on the map to set your delivery location
+                </p>
+              </div>
+              <button
+                onClick={() => setIsFullscreen(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Close Fullscreen"
+              >
+                <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              </button>
+            </div>
+
+            {/* Map */}
+            <div className="w-full h-full pt-[72px]">
+              <MapContainer
+                center={equipmentPosition}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  crossOrigin="anonymous"
+                />
+                
+                {/* Equipment Location Marker (Fixed - Green) */}
+                <Marker position={equipmentPosition} icon={equipmentIcon}>
+                  <Popup>
+                    <div className="text-sm">
+                      <strong className="text-green-700">📍 Equipment Location</strong>
+                      <p className="mt-1">{equipmentName || 'Equipment'}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {equipmentPosition[0].toFixed(6)}, {equipmentPosition[1].toFixed(6)}
+                      </p>
+                    </div>
+                  </Popup>
+                </Marker>
+
+                {/* Delivery Location Marker (Movable - Red) */}
+                {deliveryPosition && (
+                  <Marker position={deliveryPosition} icon={deliveryIcon}>
+                    <Popup>
+                      <div className="text-sm">
+                        <strong className="text-red-700">📍 Delivery Location</strong>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {deliveryPosition[0].toFixed(6)}, {deliveryPosition[1].toFixed(6)}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Red line connecting both locations */}
+                {deliveryPosition && (
+                  <Polyline
+                    positions={routePath && routePath.length > 2 ? routePath : [equipmentPosition, deliveryPosition]}
+                    color="#ef4444"
+                    weight={3}
+                    opacity={0.8}
+                    lineCap="round"
+                    lineJoin="round"
+                  />
+                )}
+
+                <MapController
+                  equipmentPosition={equipmentPosition}
+                  deliveryPosition={deliveryPosition}
+                  setDeliveryPosition={setDeliveryPosition}
+                />
+              </MapContainer>
+            </div>
+
+            {/* Footer with distance info */}
+            {deliveryPosition && distance !== null && (
+              <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 bg-green-500 rounded-full"></span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Equipment Location</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 bg-red-500 rounded-full"></span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Delivery Location</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Distance</p>
+                      <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                        {distance.toFixed(2)} km
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Transportation Fee</p>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-300">
+                        ₱{fee.toFixed(2)}
+                        {fee === 0 && <span className="text-xs ml-1">(FREE)</span>}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Distance and Fee Information */}
       {deliveryPosition && distance !== null && (

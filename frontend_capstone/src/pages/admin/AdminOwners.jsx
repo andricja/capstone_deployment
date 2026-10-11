@@ -3,17 +3,17 @@ import { createPortal } from 'react-dom';
 import api from '../../lib/api';
 import DataTable from '../../components/DataTable';
 import { ListPageSkeleton, TableSkeleton } from '../../components/Skeleton';
-import { Users, UserPlus, Tractor, Mail, Calendar, LayoutGrid, Table, ClipboardList, Plus, X, MapPin, DollarSign, Eye, Truck, Tag, FileText, Clock, Archive, Check, ListFilter, CheckCircle, LayoutList, Receipt } from 'lucide-react';
+import { Users, UserPlus, Tractor, Mail, Calendar, LayoutGrid, Table, ClipboardList, X, MapPin, DollarSign, Eye, Truck, Tag, FileText, Clock, Archive, Check, ListFilter, CheckCircle, LayoutList, Receipt } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import StatusBadge from '../../components/StatusBadge';
 import ReceiptModal from '../../components/ReceiptModal';
+import { useViewedItems } from '../../hooks/useViewedItems';
+import { TabBadge, RowBadge } from '../../components/NotificationBadge';
 
 const CATEGORIES = ['tractor','harvester','planter','irrigation','cultivator','sprayer','trailer','other'];
-
-const initialForm = {
-  name: '', category: 'tractor', description: '', daily_rate: '', transportation_fee: '', location: '', image: null,
-};
 
 const EQUIPMENT_FILTERS = [
   { key: 'all',      label: 'All',      icon: <LayoutList className="w-4 h-4" /> },
@@ -23,6 +23,7 @@ const EQUIPMENT_FILTERS = [
 
 export default function AdminOwners() {
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   
   // Tab state
   const [activeTab, setActiveTab] = useState('owners'); // 'owners' | 'equipment'
@@ -32,12 +33,6 @@ export default function AdminOwners() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('card'); // 'card' | 'table'
-
-  // Add-equipment modal state
-  const [modalOwner, setModalOwner] = useState(null); // owner object or null
-  const [form, setForm] = useState(initialForm);
-  const [submitting, setSubmitting] = useState(false);
-  const [formMsg, setFormMsg] = useState('');
 
   // Owner detail modal state
   const [detailOwner, setDetailOwner] = useState(null);
@@ -52,6 +47,9 @@ export default function AdminOwners() {
   const [approving, setApproving] = useState(false);
   const [receipt, setReceipt] = useState(null);
 
+  // Track viewed items for notifications
+  const ownerViewed = useViewedItems('viewed_admin_owners');
+  const equipmentViewed = useViewedItems('viewed_admin_equipment');
 
 
   const fetchOwners = () => {
@@ -74,8 +72,19 @@ export default function AdminOwners() {
   }, [activeTab, equipmentFilter]);
 
   // Calculate pending counts for red dots
-  const pendingOwnersCount = data.filter(owner => owner.account_status === 'email_verified').length;
-  const pendingEquipmentCount = equipmentData.filter(eq => eq.status === 'pending').length;
+  const pendingOwners = data.filter(owner => owner.account_status === 'email_verified');
+  const pendingEquipment = equipmentData.filter(eq => eq.status === 'pending');
+  
+  // Calculate NEW (unviewed) counts
+  const newOwnersCount = ownerViewed.getNewCount(pendingOwners);
+  const newEquipmentCount = equipmentViewed.getNewCount(pendingEquipment);
+  
+  // Show red dots on tabs if there are new items and user is NOT on that tab
+  const showOwnerRedDot = activeTab !== 'owners' && newOwnersCount > 0;
+  const showEquipmentRedDot = activeTab !== 'equipment' && newEquipmentCount > 0;
+  
+  // Within equipment tab, show red dot on "Pending" filter if not selected and there are new items
+  const showEquipmentPendingFilterDot = activeTab === 'equipment' && equipmentFilter !== 'pending' && newEquipmentCount > 0;
 
   // ================ EQUIPMENT APPROVALS FUNCTIONS ================
   const fetchEquipment = (f = equipmentFilter) => {
@@ -115,7 +124,16 @@ export default function AdminOwners() {
 
   const handleRejectEquipment = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Reject this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Reject Equipment',
+      message: 'Reject this equipment?',
+      confirmText: 'Reject',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/equipment/${id}/reject`);
       toast.success('Equipment rejected.');
@@ -127,7 +145,15 @@ export default function AdminOwners() {
 
   const handleArchiveEquipment = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Archive this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Equipment',
+      message: 'Archive this equipment?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/archived/equipment/${id}`);
       toast.success('Equipment archived.');
@@ -137,19 +163,6 @@ export default function AdminOwners() {
     }
   };
   // ================ END EQUIPMENT APPROVALS FUNCTIONS ================
-
-  const openModal = (owner, e) => {
-    e?.stopPropagation();
-    setModalOwner(owner);
-    setForm(initialForm);
-    setFormMsg('');
-  };
-
-  const closeModal = () => {
-    setModalOwner(null);
-    setForm(initialForm);
-    setFormMsg('');
-  };
 
   const openDetail = (owner) => {
     setDetailLoading(true);
@@ -166,7 +179,15 @@ export default function AdminOwners() {
 
   const handleArchive = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Archive this owner? They will be moved to the Archive in Account Settings.')) return;
+    const confirmed = await confirm({
+      title: 'Archive Owner',
+      message: 'Archive this owner? They will be moved to the Archive in Account Settings.',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/owners/${id}/archive`);
       toast.success('Owner archived successfully.');
@@ -182,7 +203,15 @@ export default function AdminOwners() {
 
   const handleApproveOwner = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Approve this owner account? They will be able to login.')) return;
+    const confirmed = await confirm({
+      title: 'Approve Owner',
+      message: 'Approve this owner account? They will be able to login.',
+      confirmText: 'Approve',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/owners/${id}/approve`);
       toast.success('Owner account approved successfully.');
@@ -195,8 +224,18 @@ export default function AdminOwners() {
 
   const handleRejectOwner = async (id, e) => {
     e?.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Reject Owner',
+      message: 'Reject this owner account?',
+      confirmText: 'Reject',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+    
     const reason = prompt('Enter rejection reason (optional):');
-    if (reason === null) return; // User cancelled
+    if (reason === null) return; // User cancelled after confirming
     
     try {
       await api.patch(`/admin/owners/${id}/reject`, { reason: reason || undefined });
@@ -205,34 +244,6 @@ export default function AdminOwners() {
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to reject owner.');
-    }
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value, files } = e.target;
-    setForm((prev) => ({ ...prev, [name]: files ? files[0] : value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setFormMsg('');
-    try {
-      const fd = new FormData();
-      Object.entries(form).forEach(([key, val]) => {
-        if (val !== null && val !== '') fd.append(key, val);
-      });
-      await api.post(`/admin/owners/${modalOwner.id}/equipment`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setFormMsg('Equipment added successfully!');
-      fetchOwners();
-      fetchStats();
-      setTimeout(closeModal, 1200);
-    } catch (err) {
-      setFormMsg(err.response?.data?.message || 'Failed to add equipment.');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -274,8 +285,9 @@ export default function AdminOwners() {
           >
             <Users className="w-4 h-4" />
             Equipment Owners
-            {/* Red dot indicator for pending owners */}
-            {pendingOwnersCount > 0 && (
+            <TabBadge count={newOwnersCount} active={activeTab === 'owners'} />
+            {/* Red dot indicator for pending owners - only show if NOT on this tab */}
+            {showOwnerRedDot && (
               <span className="absolute top-1 right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -292,8 +304,9 @@ export default function AdminOwners() {
           >
             <ListFilter className="w-4 h-4" />
             Equipment Approvals
-            {/* Red dot indicator for pending equipment */}
-            {pendingEquipmentCount > 0 && (
+            <TabBadge count={newEquipmentCount} active={activeTab === 'equipment'} />
+            {/* Red dot indicator for pending equipment - only show if NOT on this tab */}
+            {showEquipmentRedDot && (
               <span className="absolute top-1 right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -363,19 +376,25 @@ export default function AdminOwners() {
           {data.map((owner) => (
             <div
               key={owner.id}
-              onClick={() => openDetail(owner)}
+              onClick={() => {
+                // Mark as viewed when clicked
+                ownerViewed.markAsViewed(owner.id);
+                openDetail(owner);
+              }}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-5 hover:shadow-lg transition-all cursor-pointer"
             >
-              {/* Account Status Badge */}
+              {/* Row Badge - Red dot for new items */}
               {owner.account_status === 'email_verified' && (
-                <div className="mb-3">
+                <div className="flex items-start gap-2 mb-3">
+                  <RowBadge isNew={ownerViewed.isNew(owner.id)} />
                   <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
                     <Clock className="w-3 h-3" />
                     Pending Approval
                   </span>
                 </div>
               )}
-              {owner.account_status === 'rejected' && (
+              {/* Account Status Badge */}
+              {owner.account_status === 'email_verified' ? null : owner.account_status === 'rejected' && (
                 <div className="mb-3">
                   <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded-full">
                     <X className="w-3 h-3" />
@@ -451,16 +470,6 @@ export default function AdminOwners() {
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   </Tooltip>
-                  {owner.account_status === 'approved' && (
-                    <Tooltip text="Add Equipment">
-                      <button
-                        onClick={(e) => openModal(owner, e)}
-                        className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </Tooltip>
-                  )}
                 </div>
               </div>
             </div>
@@ -572,16 +581,6 @@ export default function AdminOwners() {
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   </Tooltip>
-                  {row.account_status === 'approved' && (
-                    <Tooltip text="Add Equipment">
-                      <button
-                        onClick={(e) => openModal(row, e)}
-                        className="p-1.5 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </Tooltip>
-                  )}
                 </div>
               ),
             },
@@ -606,7 +605,7 @@ export default function AdminOwners() {
                 <button
                   key={f.key}
                   onClick={() => setEquipmentFilter(f.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${
                     equipmentFilter === f.key
                       ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -614,6 +613,13 @@ export default function AdminOwners() {
                 >
                   {f.icon}
                   {f.label}
+                  {/* Red dot on "Pending" filter if there are pending items and not currently viewing them */}
+                  {f.key === 'pending' && showEquipmentPendingFilterDot && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -645,6 +651,8 @@ export default function AdminOwners() {
                   label: 'Equipment',
                   render: (row) => (
                     <div className="flex items-center gap-2">
+                      {/* Red dot badge for new pending equipment */}
+                      {row.status === 'pending' && <RowBadge isNew={equipmentViewed.isNew(row.id)} />}
                       {row.image ? (
                         <img src={`/storage/${row.image}`} alt={row.name} className="w-8 h-8 rounded object-cover" />
                       ) : (
@@ -658,13 +666,20 @@ export default function AdminOwners() {
                   ),
                 },
                 {
-                  key: 'daily_rate',
-                  label: 'Amount',
+                  key: 'pricing',
+                  label: 'Pricing',
                   align: 'right',
                   render: (row) => (
-                    <span className="font-medium text-gray-900 dark:text-white">₱{parseFloat(row.daily_rate).toLocaleString()}<span className="text-xs text-gray-400">/day</span></span>
+                    <div className="text-right">
+                      <span className="font-medium text-gray-900 dark:text-white block">
+                        ₱{parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare).toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {row.pricing_model === 'per_equipment' ? '/equipment' : '/hectare'}
+                      </span>
+                    </div>
                   ),
-                  sortValue: (row) => parseFloat(row.daily_rate),
+                  sortValue: (row) => parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare),
                 },
                 {
                   key: 'transportation_fee',
@@ -747,6 +762,12 @@ export default function AdminOwners() {
               searchKeys={['name', 'category', 'location', 'owner.name', 'owner.email', 'status']}
               defaultSort={{ key: 'created_at', dir: 'desc' }}
               emptyMessage={equipmentFilter === 'pending' ? 'No pending equipment to review.' : equipmentFilter === 'approved' ? 'No approved equipment yet.' : 'No equipment found.'}
+              onRowClick={(row) => {
+                // Mark equipment as viewed when row is clicked
+                if (row.status === 'pending') {
+                  equipmentViewed.markAsViewed(row.id);
+                }
+              }}
             />
           )}
 
@@ -780,12 +801,22 @@ export default function AdminOwners() {
 
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                      <p className="text-gray-400 text-xs">Daily Rate</p>
-                      <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.daily_rate).toLocaleString()}</p>
+                      <p className="text-gray-400 text-xs">
+                        {approveItem.pricing_model === 'per_equipment' ? 'Price (Flat Rate)' : 'Price per Hectare'}
+                      </p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">
+                        ₱{parseFloat(approveItem.pricing_model === 'per_equipment' ? approveItem.price_per_equipment : approveItem.price_per_hectare).toLocaleString()}
+                        <span className="text-xs font-normal text-gray-500 ml-1">
+                          {approveItem.pricing_model === 'per_equipment' ? '/equipment' : '/ha'}
+                        </span>
+                      </p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                      <p className="text-gray-400 text-xs">Transport Fee</p>
-                      <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.transportation_fee).toLocaleString()}</p>
+                      <p className="text-gray-400 text-xs">Base Transport Fee</p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.base_transportation_fee || 0).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        +₱{parseFloat(approveItem.transportation_fee_per_km || 0).toLocaleString()}/km
+                      </p>
                     </div>
                   </div>
 
@@ -835,99 +866,6 @@ export default function AdminOwners() {
           {/* Receipt Modal */}
           <ReceiptModal equipment={receipt} onClose={() => setReceipt(null)} />
         </>
-      )}
-
-      {/* ── Add Equipment Modal ── */}
-      {modalOwner && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Add Equipment</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">For owner: <span className="font-medium text-gray-700 dark:text-gray-300">{modalOwner.name}</span></p>
-              </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {formMsg && (
-                <div className={`px-4 py-2 rounded-lg text-sm ${
-                  formMsg.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {formMsg}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Equipment Name *</label>
-                <input name="name" value={form.name} onChange={handleFormChange} required
-                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category *</label>
-                  <select name="category" value={form.category} onChange={handleFormChange}
-                    className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200">
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location *</label>
-                <input name="location" value={form.location} onChange={handleFormChange} required
-                    className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                <textarea name="description" value={form.description} onChange={handleFormChange} rows={3}
-                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Daily Rate (₱) *</label>
-                  <input name="daily_rate" type="number" step="0.01" min="0" value={form.daily_rate} onChange={handleFormChange} required
-                    className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transport Fee (₱)</label>
-                  <input name="transportation_fee" type="number" step="0.01" min="0" value={form.transportation_fee} onChange={handleFormChange}
-                    className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image</label>
-                <input name="image" type="file" accept="image/*" onChange={handleFormChange}
-                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-gray-200 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 dark:file:bg-green-900/30 dark:file:text-green-400" />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-2">
-                  {submitting ? (
-                    <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Saving...</>
-                  ) : (
-                    <><Plus className="w-4 h-4" /> Add Equipment</>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
       )}
 
       {/* ── Owner Detail Modal ── */}
@@ -1048,9 +986,16 @@ export default function AdminOwners() {
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                               <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {eq.category}</span>
                               <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {eq.location}</span>
-                              <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> ₱{Number(eq.daily_rate).toLocaleString()}/day</span>
-                              {eq.transportation_fee > 0 && (
-                                <span className="flex items-center gap-1"><Truck className="w-3 h-3" /> ₱{Number(eq.transportation_fee).toLocaleString()}</span>
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" /> 
+                                ₱{Number(eq.pricing_model === 'per_equipment' ? eq.price_per_equipment : eq.price_per_hectare).toLocaleString()}
+                                {eq.pricing_model === 'per_equipment' ? '/equipment' : '/ha'}
+                              </span>
+                              {(eq.base_transportation_fee > 0 || eq.transportation_fee_per_km > 0) && (
+                                <span className="flex items-center gap-1">
+                                  <Truck className="w-3 h-3" /> 
+                                  ₱{Number(eq.base_transportation_fee || 0).toLocaleString()} + ₱{Number(eq.transportation_fee_per_km || 0).toLocaleString()}/km
+                                </span>
                               )}
                             </div>
 
@@ -1069,6 +1014,18 @@ export default function AdminOwners() {
         </div>,
         document.body
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

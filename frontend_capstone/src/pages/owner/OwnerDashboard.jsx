@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import { DashboardSkeleton } from '../../components/Skeleton';
+import AdCarousel from '../../components/AdCarousel';
 import { Truck, ClipboardCheck, Settings, CheckCircle } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -49,6 +50,9 @@ export default function OwnerDashboard() {
 
   return (
     <div>
+      {/* Ad Carousel */}
+      <AdCarousel />
+
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Owner Dashboard</h1>
 
       {/* Stats */}

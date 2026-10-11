@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMessageRequestRequest;
 use App\Models\MessageRequest;
+use App\Models\MessageReply;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,7 @@ class MessageRequestController extends Controller
     {
         $messages = $request->user()
             ->messageRequests()
+            ->with(['replies.user:id,name,email'])
             ->whereNull('archived_at')
             ->latest()
             ->paginate(15);
@@ -53,7 +55,7 @@ class MessageRequestController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = MessageRequest::with('renter:id,name,email')
+        $query = MessageRequest::with(['renter:id,name,email', 'replies.user:id,name,email'])
             ->whereNull('archived_at');
 
         if ($request->filled('status')) {
@@ -94,5 +96,48 @@ class MessageRequestController extends Controller
         $messageRequest->delete();
 
         return response()->json(['message' => 'Message request deleted.']);
+    }
+
+    /**
+     * Send a reply to a message request (Admin or Renter).
+     */
+    public function sendReply(Request $request, MessageRequest $messageRequest): JsonResponse
+    {
+        $request->validate([
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $user = $request->user();
+        $senderType = $user->role === 'admin' ? 'admin' : 'renter';
+
+        // Check if user is authorized to reply
+        if ($senderType === 'renter' && $messageRequest->renter_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $reply = MessageReply::create([
+            'message_request_id' => $messageRequest->id,
+            'user_id'            => $user->id,
+            'sender_type'        => $senderType,
+            'message'            => $request->input('message'),
+        ]);
+
+        // Load the user relationship for the response
+        $reply->load('user:id,name,email');
+
+        return response()->json([
+            'message' => 'Reply sent successfully.',
+            'reply'   => $reply,
+        ], 201);
+    }
+
+    /**
+     * Get all replies for a specific message request.
+     */
+    public function getReplies(MessageRequest $messageRequest): JsonResponse
+    {
+        $replies = $messageRequest->replies()->with('user:id,name,email')->get();
+
+        return response()->json($replies);
     }
 }

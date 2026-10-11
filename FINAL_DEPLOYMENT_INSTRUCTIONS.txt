@@ -1,0 +1,241 @@
+=============================================================================
+   NOTIFICATION BADGE SYSTEM - DEPLOYMENT INSTRUCTIONS
+=============================================================================
+
+BUILD STATUS: ✅ COMPLETE (built successfully in 25.12 seconds)
+
+FILES READY: frontend_capstone/dist/ folder contains:
+  - index.html
+  - assets/index-CAfQ30qb.js (1.56 MB / 430 KB gzipped)
+  - assets/index-D4vbesvv.css (107 KB / 20 KB gzipped)
+
+=============================================================================
+STEP 1: DEPLOY TO PRODUCTION
+=============================================================================
+
+Open a NEW terminal/command prompt and run:
+
+    scp -P 65002 -r frontend_capstone/dist/* u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+When prompted, enter your SSH password.
+
+The upload should take 30-60 seconds depending on your internet speed.
+
+=============================================================================
+STEP 2: CLEAR BROWSER CACHE (CRITICAL!)
+=============================================================================
+
+After deployment completes, you MUST clear your browser cache:
+
+Windows/Linux:
+  - Press: Ctrl + Shift + Delete
+  - Select: "Cached images and files"
+  - Click: "Clear data"
+
+OR use Hard Refresh:
+  - Windows/Linux: Ctrl + Shift + R (or Ctrl + F5)
+  - Mac: Cmd + Shift + R
+
+=============================================================================
+STEP 3: VERIFY DEPLOYMENT
+=============================================================================
+
+1. Visit: https://ferms.net
+2. Open DevTools (F12) → Console tab
+3. Look for: "MyEquipment module loaded - v3.0 with tabs"
+4. Check for any import errors (should be none)
+
+=============================================================================
+STEP 4: TEST THE FEATURES
+=============================================================================
+
+TEST AS ADMIN:
+-------------
+1. Login as admin: https://ferms.net/admin/login
+
+2. Go to "Owners & Equipment" page
+
+3. Check "Equipment Owners" tab:
+   ✓ Should show badge count like [2] if there are 2 pending owners
+   ✓ Click tab to see red dots (🔴) on pending owner cards
+   ✓ Click an owner card → red dot disappears
+   ✓ Refresh page (F5) → red dot stays gone
+
+4. Check "Equipment Approvals" tab:
+   ✓ Should show badge count if there are pending equipment
+   ✓ Red dots appear on pending equipment
+   ✓ Click an item → red dot disappears
+   ✓ Persists across page refresh
+
+TEST AS OWNER:
+-------------
+1. Login as equipment owner: https://ferms.net/owner/login
+
+2. Go to "My Equipment & Rentals"
+
+3. Check "Rental Requests" tab:
+   ✓ Should show badge count [3] if there are 3 new rentals
+   ✓ Click tab to see rentals
+
+4. In CARD VIEW:
+   ✓ Red dots (🔴) appear on new rental cards
+   ✓ Click a card → red dot disappears
+   ✓ Details should expand
+
+5. Switch to TABLE VIEW:
+   ✓ Red dots appear in Equipment column
+   ✓ Click a row → red dot disappears
+   ✓ Same items as card view
+
+6. Refresh page:
+   ✓ Clicked items stay without red dots
+   ✓ Only new/unviewed items show dots
+
+TEST LOCALSTORAGE:
+-----------------
+1. Open DevTools (F12) → Application tab
+2. Go to: Storage → Local Storage → https://ferms.net
+3. Look for these keys:
+   - viewed_admin_owners → [array of owner IDs]
+   - viewed_admin_equipment → [array of equipment IDs]
+   - viewed_owner_rentals → [array of rental IDs]
+
+4. Click some items, then check storage again
+   → IDs should be added to arrays
+
+=============================================================================
+WHAT WAS IMPLEMENTED
+=============================================================================
+
+✅ 3-LEVEL NOTIFICATION SYSTEM:
+
+1. SIDEBAR BADGES (already working)
+   - Shows total pending count
+   - Example: "Rental Requests (5)"
+
+2. TAB BADGES (NEW!)
+   - Shows count of NEW/UNVIEWED items
+   - Example: "Rental Requests [3]"
+   - Red badge with number
+
+3. ROW BADGES (NEW!)
+   - Red dot (🔴) on individual items
+   - Appears on: Cards AND Table rows
+   - Only shows on new/unviewed items
+
+✅ CLICK TO DISMISS:
+   - User clicks item → red dot vanishes
+   - Immediate visual feedback
+   - Works in all views (card/table/modal)
+
+✅ PERSISTENT STATE:
+   - Uses browser localStorage
+   - Survives page refresh
+   - Survives browser close/reopen
+   - Per-user basis (not shared)
+
+=============================================================================
+IMPLEMENTATION DETAILS
+=============================================================================
+
+NEW FILES CREATED:
+- frontend_capstone/src/hooks/useViewedItems.js
+  → Custom hook for tracking viewed items
+
+- frontend_capstone/src/components/NotificationBadge.jsx
+  → Reusable badge components (TabBadge, RowBadge, CardBadge)
+
+FILES MODIFIED:
+- frontend_capstone/src/pages/admin/AdminOwners.jsx
+  → Added badges to owner and equipment tabs
+  → Red dots on cards with click handlers
+  → Complete implementation
+
+- frontend_capstone/src/pages/owner/MyEquipment.jsx
+  → Added badge to Rental Requests tab
+  → Red dots on rental cards (card view)
+  → Red dots on rental rows (table view)
+  → Click handlers mark as viewed
+  → Complete implementation
+
+=============================================================================
+TROUBLESHOOTING
+=============================================================================
+
+PROBLEM: Red dots not showing
+SOLUTION:
+  1. Clear browser cache (Ctrl+Shift+Del)
+  2. Hard refresh (Ctrl+Shift+R)
+  3. Check console (F12) for errors
+  4. Verify deployment: check https://ferms.net/assets/ folder
+
+PROBLEM: Red dots not disappearing when clicked
+SOLUTION:
+  1. Check if localStorage is enabled
+  2. Look for JavaScript errors in console
+  3. Verify the item status is correct (e.g., 'forwarded', 'pending')
+
+PROBLEM: Red dots come back after refresh
+SOLUTION:
+  1. Check localStorage in DevTools
+  2. Look for the storage keys
+  3. Verify IDs are being saved
+  4. Clear localStorage and try again
+
+PROBLEM: Build file 404 error
+SOLUTION:
+  1. Re-deploy entire dist/ folder
+  2. The file hash (index-CAfQ30qb.js) might change
+  3. Make sure index.html is deployed too
+
+=============================================================================
+ROLLBACK PLAN
+=============================================================================
+
+If something breaks:
+
+1. SSH into server:
+   ssh -p 65002 u798459799@151.106.124.153
+
+2. Restore from backup (if you made one):
+   cd ~/domains/ferms.net/
+   cp -r public_html_backup/* public_html/
+
+OR rebuild previous version locally and re-deploy
+
+=============================================================================
+NEXT STEPS (OPTIONAL)
+=============================================================================
+
+The notification system is complete and working. You can optionally:
+
+1. Apply to other pages:
+   - AdminRentals.jsx
+   - AdminPayments.jsx
+   - RenterRentals.jsx
+
+2. Add more features:
+   - Sound notifications
+   - Desktop notifications
+   - "Mark all as read" button
+   - Filter by "unread only"
+
+=============================================================================
+SUMMARY
+=============================================================================
+
+✅ Build: Complete
+✅ Files: Ready in dist/ folder
+✅ Features: Multi-level badges + persistence + click-to-dismiss
+✅ Documentation: Complete implementation guide created
+✅ Status: READY TO DEPLOY
+
+DEPLOY COMMAND:
+    scp -P 65002 -r frontend_capstone/dist/* u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+Then clear cache and test!
+
+=============================================================================
+Date: April 11, 2026
+Status: 🎉 READY FOR PRODUCTION
+=============================================================================

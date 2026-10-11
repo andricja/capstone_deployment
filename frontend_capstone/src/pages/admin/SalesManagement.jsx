@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../lib/api';
 import DataTable from '../../components/DataTable';
 import { TableSkeleton } from '../../components/Skeleton';
-import { TrendingUp, DollarSign, ShoppingCart, Package, Activity, Calendar, Filter, Download, BarChart3, Tractor, FileText } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingCart, Package, Activity, Calendar, Filter, Download, BarChart3, Tractor, FileText, Printer } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function SalesManagement() {
@@ -92,7 +92,12 @@ export default function SalesManagement() {
       params.set('end_date', reportEndDate);
     }
     const token = localStorage.getItem('token');
-    window.open(`/api/admin/reports/revenue/csv?${params.toString()}&token=${token}`, '_blank');
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://ferms.net/api';
+    window.open(`${baseURL}/admin/reports/revenue/csv?${params.toString()}&token=${token}`, '_blank');
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const formatCurrency = (value) => {
@@ -154,11 +159,20 @@ export default function SalesManagement() {
       ),
     },
     {
-      key: 'daily_rate',
-      label: 'Daily Rate',
+      key: 'pricing',
+      label: 'Pricing',
       align: 'right',
-      render: (row) => <span className="text-gray-600 dark:text-gray-400">₱{parseFloat(row.daily_rate).toLocaleString()}</span>,
-      sortValue: (row) => parseFloat(row.daily_rate),
+      render: (row) => (
+        <div className="text-right">
+          <span className="text-gray-600 dark:text-gray-400 block">
+            ₱{parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare).toLocaleString()}
+          </span>
+          <span className="text-xs text-gray-500">
+            {row.pricing_model === 'per_equipment' ? '/equipment' : '/hectare'}
+          </span>
+        </div>
+      ),
+      sortValue: (row) => parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare),
     },
     {
       key: 'approval_fee',
@@ -179,6 +193,53 @@ export default function SalesManagement() {
 
   return (
     <div>
+      {/* Print-specific styles */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print\\:block, .print\\:block * {
+            visibility: visible;
+          }
+          .print\\:hidden, .print\\:hidden * {
+            visibility: hidden !important;
+            display: none !important;
+          }
+          .print\\:p-8 {
+            padding: 2rem;
+          }
+          @page {
+            margin: 1cm;
+          }
+          /* Make sure the report container is visible */
+          div[class*="print:p-8"], div[class*="print:p-8"] * {
+            visibility: visible;
+          }
+          /* Position the print content at the top */
+          div[class*="print:p-8"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          /* Ensure tables print properly */
+          table {
+            page-break-inside: auto;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          /* Remove shadows and borders for cleaner print */
+          .shadow-md {
+            box-shadow: none !important;
+          }
+          .rounded-xl, .rounded-lg {
+            border-radius: 0 !important;
+          }
+        }
+      `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <TrendingUp className="w-7 h-7 text-green-600 dark:text-green-400" />
@@ -282,11 +343,12 @@ export default function SalesManagement() {
 
               {/* Key Metrics Cards */}
               {metrics && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Total Admin Revenue */}
                   <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 border-l-4 border-l-green-500 p-5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Admin Revenue</p>
                         <p className="text-2xl font-bold text-green-700 dark:text-green-400">{formatCurrency(metrics.total_revenue)}</p>
                         {metrics.revenue_growth !== 0 && (
                           <p className={`text-xs mt-1 ${metrics.revenue_growth > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -300,25 +362,41 @@ export default function SalesManagement() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-blue-200 dark:border-blue-700 border-l-4 border-l-blue-500 p-5 transition-colors">
+                  {/* Approval Fee Revenue */}
+                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-indigo-200 dark:border-indigo-700 border-l-4 border-l-indigo-500 p-5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Bookings</p>
-                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metrics.total_bookings}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Verified payments</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Approval Fees</p>
+                        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(metrics.approval_fee_revenue || 0)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{metrics.total_approvals || 0} equipment approved</p>
                       </div>
-                      <div className="bg-gradient-to-br from-blue-100 to-cyan-200 dark:from-blue-900/30 dark:to-cyan-900/40 p-3 rounded-lg">
-                        <ShoppingCart className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      <div className="bg-gradient-to-br from-indigo-100 to-purple-200 dark:from-indigo-900/30 dark:to-purple-900/40 p-3 rounded-lg">
+                        <Package className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                       </div>
                     </div>
                   </div>
 
+                  {/* Service Charge Revenue */}
+                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-teal-200 dark:border-teal-700 border-l-4 border-l-teal-500 p-5 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Service Charges</p>
+                        <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{formatCurrency(metrics.service_charge_revenue || 0)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{metrics.total_bookings || 0} rentals</p>
+                      </div>
+                      <div className="bg-gradient-to-br from-teal-100 to-cyan-200 dark:from-teal-900/30 dark:to-cyan-900/40 p-3 rounded-lg">
+                        <ShoppingCart className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Avg Service Charge */}
                   <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-amber-200 dark:border-amber-700 border-l-4 border-l-amber-500 p-5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Avg Transaction</p>
-                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(metrics.avg_transaction_value)}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Per booking</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Avg Commission</p>
+                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(metrics.avg_service_charge || 0)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Per rental</p>
                       </div>
                       <div className="bg-gradient-to-br from-amber-100 to-yellow-200 dark:from-amber-900/30 dark:to-yellow-900/40 p-3 rounded-lg">
                         <Activity className="w-6 h-6 text-amber-600 dark:text-amber-400" />
@@ -326,15 +404,16 @@ export default function SalesManagement() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-purple-200 dark:border-purple-700 border-l-4 border-l-purple-500 p-5 transition-colors">
+                  {/* Active Equipment */}
+                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800 rounded-xl shadow-md border border-blue-200 dark:border-blue-700 border-l-4 border-l-blue-500 p-5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Equipment</p>
-                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{metrics.active_equipment}</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metrics.active_equipment || 0}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Available for rent</p>
                       </div>
-                      <div className="bg-gradient-to-br from-purple-100 to-pink-200 dark:from-purple-900/30 dark:to-pink-900/40 p-3 rounded-lg">
-                        <Package className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                      <div className="bg-gradient-to-br from-blue-100 to-cyan-200 dark:from-blue-900/30 dark:to-cyan-900/40 p-3 rounded-lg">
+                        <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                       </div>
                     </div>
                   </div>
@@ -345,7 +424,8 @@ export default function SalesManagement() {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6 transition-colors">
                 <div className="flex items-center gap-2 mb-4">
                   <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue Trends</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Revenue Trends</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Approval Fees + Service Charges)</p>
                 </div>
                 {revenueTrends.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
@@ -365,17 +445,37 @@ export default function SalesManagement() {
                           borderRadius: '8px',
                         }}
                         labelFormatter={formatPeriodLabel}
-                        formatter={(value) => [formatCurrency(value), 'Revenue']}
+                        formatter={(value) => [formatCurrency(value), '']}
                       />
                       <Legend />
                       <Line
                         type="monotone"
-                        dataKey="revenue"
+                        dataKey="total_revenue"
                         stroke="#10B981"
-                        strokeWidth={2}
+                        strokeWidth={3}
                         dot={{ r: 4 }}
                         activeDot={{ r: 6 }}
-                        name="Revenue"
+                        name="Total Revenue"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="approval_revenue"
+                        stroke="#6366F1"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        name="Approval Fees"
+                        strokeDasharray="5 5"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="service_revenue"
+                        stroke="#14B8A6"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        name="Service Charges"
+                        strokeDasharray="5 5"
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -427,7 +527,7 @@ export default function SalesManagement() {
                               <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{item.rental_requests_count}</span>
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <span className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(item.total_revenue)}</span>
+                              <span className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(item.admin_commission || item.total_revenue || 0)}</span>
                             </td>
                           </tr>
                         ))}
@@ -441,7 +541,8 @@ export default function SalesManagement() {
 
               {/* Revenue by Owner */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6 transition-colors">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Owner</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Admin Revenue by Owner</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Approval fees paid by each owner</p>
                 {revenueByOwner.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={revenueByOwner}>
@@ -456,7 +557,9 @@ export default function SalesManagement() {
                         }}
                         formatter={(value) => formatCurrency(value)}
                       />
-                      <Bar dataKey="total_revenue" fill="#10B981" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="total_admin_revenue" fill="#10B981" radius={[8, 8, 0, 0]} name="Admin Revenue" />
+                      <Bar dataKey="total_approval_fees" fill="#6366F1" radius={[8, 8, 0, 0]} name="Approval Fees" />
+                      <Bar dataKey="total_service_charges" fill="#14B8A6" radius={[8, 8, 0, 0]} name="Service Charges" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -470,17 +573,35 @@ export default function SalesManagement() {
 
       {/* Reports Tab */}
       {activeTab === 'reports' && (
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="print:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 print:hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400">Equipment approval revenue reports and transactions</p>
-            <button onClick={handleExportCsv}
-              className="bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 flex items-center gap-1">
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
+            <div className="flex gap-2">
+              <button onClick={handlePrint}
+                className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-600 flex items-center gap-1">
+                <Printer className="w-4 h-4" /> Print
+              </button>
+              <button onClick={handleExportCsv}
+                className="bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 flex items-center gap-1">
+                <Download className="w-4 h-4" /> Export CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Print Header - Only visible when printing */}
+          <div className="hidden print:block mb-6 text-center border-b-2 border-gray-300 pb-4">
+            <h1 className="text-2xl font-bold text-gray-900">FERMS - Revenue Report</h1>
+            <p className="text-sm text-gray-600 mt-1">Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            {reportFilter === 'custom' && reportStartDate && reportEndDate && (
+              <p className="text-sm text-gray-600">Period: {new Date(reportStartDate).toLocaleDateString()} - {new Date(reportEndDate).toLocaleDateString()}</p>
+            )}
+            {reportFilter !== 'custom' && (
+              <p className="text-sm text-gray-600">Period: {reportFilter === 'day' ? 'Today' : reportFilter === 'week' ? 'This Week' : reportFilter === 'month' ? 'This Month' : 'This Year'}</p>
+            )}
           </div>
 
           {/* Filters */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 mb-6 flex flex-wrap items-end gap-3 transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 mb-6 flex flex-wrap items-end gap-3 transition-colors print:hidden">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Time Period</label>
               <select value={reportFilter} onChange={(e) => setReportFilter(e.target.value)}

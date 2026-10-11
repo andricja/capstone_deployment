@@ -6,6 +6,8 @@ import { TableSkeleton } from '../../components/Skeleton';
 import Pagination from '../../components/Pagination';
 import { Check, X } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminPoints() {
   const [data, setData] = useState(null);
@@ -13,6 +15,7 @@ export default function AdminPoints() {
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   const [previewImg, setPreviewImg] = useState(null);
 
   const fetch = (p = 1) => {
@@ -27,7 +30,16 @@ export default function AdminPoints() {
   useEffect(() => { fetch(page); }, [page, filter]);
 
   const handleAction = async (id, action) => {
-    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} this points request?`)) return;
+    const confirmed = await confirm({
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Points Request`,
+      message: `${action.charAt(0).toUpperCase() + action.slice(1)} this points request?`,
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      cancelText: 'Cancel',
+      danger: action === 'reject'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/points-requests/${id}/${action}`);
       toast.success(`Points request ${action}d.`);
@@ -117,6 +129,18 @@ export default function AdminPoints() {
         </div>,
         document.body
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

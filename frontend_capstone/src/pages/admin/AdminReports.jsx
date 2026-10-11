@@ -84,11 +84,20 @@ export default function AdminReports() {
       ),
     },
     {
-      key: 'daily_rate',
-      label: 'Daily Rate',
+      key: 'pricing',
+      label: 'Pricing',
       align: 'right',
-      render: (row) => <span className="text-gray-600 dark:text-gray-400">₱{parseFloat(row.daily_rate).toLocaleString()}</span>,
-      sortValue: (row) => parseFloat(row.daily_rate),
+      render: (row) => (
+        <div className="text-right">
+          <span className="text-gray-600 dark:text-gray-400 block">
+            ₱{parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare).toLocaleString()}
+          </span>
+          <span className="text-xs text-gray-500">
+            {row.pricing_model === 'per_equipment' ? '/equipment' : '/hectare'}
+          </span>
+        </div>
+      ),
+      sortValue: (row) => parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare),
     },
     {
       key: 'approval_fee',

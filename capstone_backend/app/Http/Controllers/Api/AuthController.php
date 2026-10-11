@@ -215,7 +215,12 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // Log successful login
-        AuditService::logLogin();
+        try {
+            AuditService::logLogin();
+        } catch (\Exception $e) {
+            \Log::error('Audit log failed: ' . $e->getMessage());
+            // Continue with login even if audit fails
+        }
 
         return response()->json([
             'message' => 'Login successful.',
@@ -230,7 +235,12 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         // Log logout before token deletion
-        AuditService::logLogout();
+        try {
+            AuditService::logLogout();
+        } catch (\Exception $e) {
+            \Log::error('Audit log failed: ' . $e->getMessage());
+            // Continue with logout even if audit fails
+        }
         
         $request->user()->currentAccessToken()->delete();
 

@@ -1,0 +1,85 @@
+════════════════════════════════════════════════════════════════
+  ⚠️  URGENT: NEW BUILD NOT YET DEPLOYED
+════════════════════════════════════════════════════════════════
+
+Server Currently Running: index-CYQxIHdO.js (OLD - with calendar bug)
+Need to Deploy:           index-DMQHTsFM.js (NEW - calendar removed)
+
+════════════════════════════════════════════════════════════════
+  ACTION REQUIRED: UPLOAD FILES NOW
+════════════════════════════════════════════════════════════════
+
+YOU MUST UPLOAD THESE FILES WITH WINSCP:
+
+1. Open WinSCP
+2. Connect:
+   Host: 151.106.124.153
+   Port: 65002
+   User: u798459799
+   Pass: [REDACTED - See secure password manager]
+
+3. LEFT SIDE: Navigate to
+   C:\Users\seanj\Downloads\capstoneclone\capstone-main\frontend_capstone\dist\
+
+4. RIGHT SIDE: Navigate to
+   /home/u798459799/domains/ferms.net/public_html/
+
+5. DRAG THESE FILES FROM LEFT TO RIGHT:
+   
+   ☐ index.html
+   ☐ assets/ (entire folder)
+   ☐ firebase-messaging-sw.js
+   ☐ vite.svg
+
+6. When asked "File exists, overwrite?"
+   → Click "YES" or "OVERWRITE" for ALL files
+
+7. Wait for upload to complete (watch progress bar)
+
+════════════════════════════════════════════════════════════════
+  AFTER UPLOAD: RUN THESE COMMANDS
+════════════════════════════════════════════════════════════════
+
+Copy and paste these commands in Git Bash:
+
+ssh -i "$HOME/.ssh/ferms_deploy" -p 65002 u798459799@151.106.124.153
+
+Then run:
+
+cd ~/domains/ferms.net/public_html/
+chmod 755 assets
+chmod 644 assets/*
+chmod 644 index.html firebase-messaging-sw.js vite.svg
+cat index.html | grep "index-"
+ls -lh assets/ | grep "DMQHTsFM"
+
+════════════════════════════════════════════════════════════════
+  VERIFY DEPLOYMENT
+════════════════════════════════════════════════════════════════
+
+After running commands above, you should see:
+
+✓ cat index.html → Shows: index-DMQHTsFM.js
+✓ ls -lh assets  → Shows: index-DMQHTsFM.js (1.5M)
+
+If you see these, deployment is SUCCESSFUL!
+
+════════════════════════════════════════════════════════════════
+  THEN TEST IN BROWSER
+════════════════════════════════════════════════════════════════
+
+1. Close ALL browser tabs
+2. Press Ctrl + Shift + Delete
+3. Select "All time"
+4. Clear "Cached images and files"
+5. Close browser
+6. Reopen → Go to https://ferms.net
+7. Login as Admin → Go to Rentals
+8. Should see: LIST VIEW ONLY (no calendar tab!)
+
+════════════════════════════════════════════════════════════════
+
+The error you're seeing is because the OLD build is still running!
+Upload the NEW build to fix it.
+
+════════════════════════════════════════════════════════════════

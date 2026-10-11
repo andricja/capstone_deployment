@@ -87,12 +87,21 @@ export default function ReceiptModal({ equipment, onClose }) {
               <span className="font-medium text-gray-900">{equipment.owner?.name ?? '—'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Daily Rate</span>
-              <span className="font-medium text-gray-900">₱{parseFloat(equipment.daily_rate).toLocaleString()}</span>
+              <span className="text-gray-500">
+                {equipment.pricing_model === 'per_equipment' ? 'Equipment Price' : 'Price per Hectare'}
+              </span>
+              <span className="font-medium text-gray-900">
+                ₱{parseFloat(equipment.pricing_model === 'per_equipment' ? equipment.price_per_equipment : equipment.price_per_hectare).toLocaleString()}
+                {equipment.pricing_model === 'per_equipment' ? '/eq' : '/ha'}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Transport Fee</span>
-              <span className="font-medium text-gray-900">₱{parseFloat(equipment.transportation_fee).toLocaleString()}</span>
+              <span className="text-gray-500">Base Transport Fee</span>
+              <span className="font-medium text-gray-900">₱{parseFloat(equipment.base_transportation_fee || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Per KM Rate</span>
+              <span className="font-medium text-gray-900">₱{parseFloat(equipment.transportation_fee_per_km || 0).toLocaleString()}/km</span>
             </div>
             <div className="border-t border-dashed pt-3 flex justify-between items-center">
               <span className="text-gray-700 font-semibold">Approval Fee</span>

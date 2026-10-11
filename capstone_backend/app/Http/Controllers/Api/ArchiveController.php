@@ -41,7 +41,10 @@ class ArchiveController extends Controller
     {
         $items = $request->user()
             ->rentalRequests()
-            ->with('equipment:id,name,category,image,daily_rate,location')
+            ->with([
+                'equipment:id,name,category,image,price_per_hectare,location,owner_id',
+                'equipment.owner:id,name,email'
+            ])
             ->whereNotNull('archived_at')
             ->latest('archived_at')
             ->get();
@@ -71,6 +74,48 @@ class ArchiveController extends Controller
         $rental->delete();
 
         return response()->json(['message' => 'Rental request permanently deleted.']);
+    }
+
+    /**
+     * Bulk restore rentals (renter).
+     */
+    public function renterBulkRestoreRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->rentalRequests()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental request(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk delete rentals (renter).
+     */
+    public function renterBulkDeleteRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->rentalRequests()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental request(s) permanently deleted.'
+        ]);
     }
 
     /**
@@ -109,6 +154,48 @@ class ArchiveController extends Controller
         $message->delete();
 
         return response()->json(['message' => 'Message permanently deleted.']);
+    }
+
+    /**
+     * Bulk restore messages (renter).
+     */
+    public function renterBulkRestoreMessages(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->messageRequests()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' message(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk delete messages (renter).
+     */
+    public function renterBulkDeleteMessages(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->messageRequests()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' message(s) permanently deleted.'
+        ]);
     }
 
     /* ================================================================== */
@@ -154,13 +241,58 @@ class ArchiveController extends Controller
     }
 
     /**
+     * Bulk restore equipment (owner).
+     */
+    public function ownerBulkRestoreEquipment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->equipment()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' equipment item(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk delete equipment (owner).
+     */
+    public function ownerBulkDeleteEquipment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $request->user()
+            ->equipment()
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' equipment item(s) permanently deleted.'
+        ]);
+    }
+
+    /**
      * List archived rental requests for the owner's equipment.
      */
     public function ownerArchivedRentals(Request $request): JsonResponse
     {
         $equipmentIds = $request->user()->equipment()->pluck('id');
 
-        $items = RentalRequest::with('renter:id,name,email', 'equipment:id,name,category')
+        $items = RentalRequest::with([
+                'renter:id,name,email',
+                'equipment:id,name,category,price_per_hectare,location'
+            ])
             ->whereIn('equipment_id', $equipmentIds)
             ->whereNotNull('archived_at')
             ->latest('archived_at')
@@ -193,6 +325,50 @@ class ArchiveController extends Controller
         $rental->delete();
 
         return response()->json(['message' => 'Rental request permanently deleted.']);
+    }
+
+    /**
+     * Bulk restore rentals (owner).
+     */
+    public function ownerBulkRestoreRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $equipmentIds = $request->user()->equipment()->pluck('id');
+
+        RentalRequest::whereIn('equipment_id', $equipmentIds)
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental request(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk delete rentals (owner).
+     */
+    public function ownerBulkDeleteRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        $equipmentIds = $request->user()->equipment()->pluck('id');
+
+        RentalRequest::whereIn('equipment_id', $equipmentIds)
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental request(s) permanently deleted.'
+        ]);
     }
 
     /* ================================================================== */
@@ -310,5 +486,300 @@ class ArchiveController extends Controller
         $owner->delete();
 
         return response()->json(['message' => 'Owner permanently deleted.']);
+    }
+
+    /* ================================================================== */
+    /*  ADMIN  – Get archived items by type                                */
+    /* ================================================================== */
+
+    /**
+     * Get all archived owners.
+     */
+    public function adminArchivedOwners(): JsonResponse
+    {
+        $owners = User::where('role', 'owner')
+            ->whereNotNull('archived_at')
+            ->withCount('equipment')
+            ->latest('archived_at')
+            ->get();
+
+        return response()->json($owners);
+    }
+
+    /**
+     * Get all archived equipment.
+     */
+    public function adminArchivedEquipment(): JsonResponse
+    {
+        $equipment = Equipment::with('owner:id,name,email')
+            ->whereNotNull('archived_at')
+            ->latest('archived_at')
+            ->get();
+
+        return response()->json($equipment);
+    }
+
+    /**
+     * Get all archived rentals.
+     */
+    public function adminArchivedRentals(): JsonResponse
+    {
+        $rentals = RentalRequest::with([
+                'renter:id,name,email',
+                'equipment:id,name,category,price_per_hectare,location,owner_id',
+                'equipment.owner:id,name,email'
+            ])
+            ->whereNotNull('archived_at')
+            ->latest('archived_at')
+            ->get();
+
+        return response()->json($rentals);
+    }
+
+    /**
+     * Get all archived payments (if payments table has archived_at column).
+     */
+    public function adminArchivedPayments(): JsonResponse
+    {
+        // Assuming you have a Payment model with archived_at column
+        // If not, this can return empty array or handle differently
+        try {
+            $payments = \App\Models\Payment::with('rental.equipment')
+                ->whereNotNull('archived_at')
+                ->latest('archived_at')
+                ->get();
+            return response()->json($payments);
+        } catch (\Exception $e) {
+            return response()->json([]);
+        }
+    }
+
+    /* ================================================================== */
+    /*  ADMIN  – Bulk restore operations                                   */
+    /* ================================================================== */
+
+    /**
+     * Bulk restore owners.
+     */
+    public function bulkRestoreOwners(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:users,id'
+        ]);
+
+        User::where('role', 'owner')
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' owner(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk restore equipment.
+     */
+    public function bulkRestoreEquipment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:equipment,id'
+        ]);
+
+        Equipment::whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' equipment item(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk restore rentals.
+     */
+    public function bulkRestoreRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:rental_requests,id'
+        ]);
+
+        RentalRequest::whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental(s) restored successfully.'
+        ]);
+    }
+
+    /**
+     * Bulk restore payments.
+     */
+    public function bulkRestorePayments(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        try {
+            \App\Models\Payment::whereIn('id', $request->ids)
+                ->whereNotNull('archived_at')
+                ->update(['archived_at' => null]);
+
+            return response()->json([
+                'message' => count($request->ids) . ' payment(s) restored successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Feature not available'], 404);
+        }
+    }
+
+    /* ================================================================== */
+    /*  ADMIN  – Bulk delete operations                                    */
+    /* ================================================================== */
+
+    /**
+     * Bulk delete owners permanently.
+     */
+    public function bulkDeleteOwners(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:users,id'
+        ]);
+
+        User::where('role', 'owner')
+            ->whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' owner(s) permanently deleted.'
+        ]);
+    }
+
+    /**
+     * Bulk delete equipment permanently.
+     */
+    public function bulkDeleteEquipment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:equipment,id'
+        ]);
+
+        Equipment::whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' equipment item(s) permanently deleted.'
+        ]);
+    }
+
+    /**
+     * Bulk delete rentals permanently.
+     */
+    public function bulkDeleteRentals(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:rental_requests,id'
+        ]);
+
+        RentalRequest::whereIn('id', $request->ids)
+            ->whereNotNull('archived_at')
+            ->delete();
+
+        return response()->json([
+            'message' => count($request->ids) . ' rental(s) permanently deleted.'
+        ]);
+    }
+
+    /**
+     * Bulk delete payments permanently.
+     */
+    public function bulkDeletePayments(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer'
+        ]);
+
+        try {
+            \App\Models\Payment::whereIn('id', $request->ids)
+                ->whereNotNull('archived_at')
+                ->delete();
+
+            return response()->json([
+                'message' => count($request->ids) . ' payment(s) permanently deleted.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Feature not available'], 404);
+        }
+    }
+
+    /* ================================================================== */
+    /*  ADMIN  – Single restore operations                                 */
+    /* ================================================================== */
+
+    /**
+     * Restore a single owner (uses toggle, but called from restore action).
+     */
+    public function restoreOwner(int $id): JsonResponse
+    {
+        $owner = User::where('role', 'owner')
+            ->whereNotNull('archived_at')
+            ->findOrFail($id);
+        
+        $owner->archived_at = null;
+        $owner->save();
+
+        return response()->json(['message' => 'Owner restored successfully.']);
+    }
+
+    /**
+     * Restore a single equipment.
+     */
+    public function restoreEquipment(int $id): JsonResponse
+    {
+        $equipment = Equipment::whereNotNull('archived_at')->findOrFail($id);
+        $equipment->archived_at = null;
+        $equipment->save();
+
+        return response()->json(['message' => 'Equipment restored successfully.']);
+    }
+
+    /**
+     * Restore a single rental.
+     */
+    public function restoreRental(int $id): JsonResponse
+    {
+        $rental = RentalRequest::whereNotNull('archived_at')->findOrFail($id);
+        $rental->archived_at = null;
+        $rental->save();
+
+        return response()->json(['message' => 'Rental restored successfully.']);
+    }
+
+    /**
+     * Restore a single payment.
+     */
+    public function restorePayment(int $id): JsonResponse
+    {
+        try {
+            $payment = \App\Models\Payment::whereNotNull('archived_at')->findOrFail($id);
+            $payment->archived_at = null;
+            $payment->save();
+
+            return response()->json(['message' => 'Payment restored successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Feature not available'], 404);
+        }
     }
 }

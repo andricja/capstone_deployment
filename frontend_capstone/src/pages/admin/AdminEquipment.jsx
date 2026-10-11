@@ -7,6 +7,8 @@ import DataTable from '../../components/DataTable';
 import ReceiptModal from '../../components/ReceiptModal';
 import { Check, X, ListFilter, Clock, CheckCircle, LayoutList, DollarSign, Receipt, Eye, Archive } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
 
 const FILTERS = [
@@ -20,6 +22,7 @@ export default function AdminEquipment() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
 
   // Approval modal state
   const [approveItem, setApproveItem] = useState(null);
@@ -71,7 +74,16 @@ export default function AdminEquipment() {
   /* Reject stays simple */
   const handleReject = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Reject this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Reject Equipment',
+      message: 'Reject this equipment?',
+      confirmText: 'Reject',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/equipment/${id}/reject`);
       toast.success('Equipment rejected.');
@@ -83,7 +95,15 @@ export default function AdminEquipment() {
 
   const handleArchive = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Archive this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Equipment',
+      message: 'Archive this equipment?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/admin/archived/equipment/${id}`);
       toast.success('Equipment archived.');
@@ -128,13 +148,20 @@ export default function AdminEquipment() {
       ),
     },
     {
-      key: 'daily_rate',
-      label: 'Amount',
+      key: 'pricing',
+      label: 'Pricing',
       align: 'right',
       render: (row) => (
-        <span className="font-medium text-gray-900 dark:text-white">₱{parseFloat(row.daily_rate).toLocaleString()}<span className="text-xs text-gray-400">/day</span></span>
+        <div className="text-right">
+          <span className="font-medium text-gray-900 dark:text-white block">
+            ₱{parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare).toLocaleString()}
+          </span>
+          <span className="text-xs text-gray-400">
+            {row.pricing_model === 'per_equipment' ? '/equipment' : '/hectare'}
+          </span>
+        </div>
       ),
-      sortValue: (row) => parseFloat(row.daily_rate),
+      sortValue: (row) => parseFloat(row.pricing_model === 'per_equipment' ? row.price_per_equipment : row.price_per_hectare),
     },
     {
       key: 'transportation_fee',
@@ -286,12 +313,22 @@ export default function AdminEquipment() {
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                  <p className="text-gray-400 text-xs">Daily Rate</p>
-                  <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.daily_rate).toLocaleString()}</p>
+                  <p className="text-gray-400 text-xs">
+                    {approveItem.pricing_model === 'per_equipment' ? 'Price (Flat Rate)' : 'Price per Hectare'}
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    ₱{parseFloat(approveItem.pricing_model === 'per_equipment' ? approveItem.price_per_equipment : approveItem.price_per_hectare).toLocaleString()}
+                    <span className="text-xs font-normal text-gray-500 ml-1">
+                      {approveItem.pricing_model === 'per_equipment' ? '/equipment' : '/ha'}
+                    </span>
+                  </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                  <p className="text-gray-400 text-xs">Transport Fee</p>
-                  <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.transportation_fee).toLocaleString()}</p>
+                  <p className="text-gray-400 text-xs">Base Transport Fee</p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">₱{parseFloat(approveItem.base_transportation_fee || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    +₱{parseFloat(approveItem.transportation_fee_per_km || 0).toLocaleString()}/km
+                  </p>
                 </div>
               </div>
 
@@ -342,6 +379,18 @@ export default function AdminEquipment() {
 
       {/* ── Receipt Modal (shared component) ── */}
       <ReceiptModal equipment={receipt} onClose={() => setReceipt(null)} />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

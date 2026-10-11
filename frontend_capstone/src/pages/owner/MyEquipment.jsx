@@ -13,7 +13,12 @@ import ReceiptModal from '../../components/ReceiptModal';
 import LocationPicker from '../../components/LocationPicker';
 import { Plus, Pencil, Trash2, Settings, CheckCircle, Eye, Archive, Truck, Package, ClipboardList, CalendarDays, Check, X, Ruler, Clock, Calendar as CalIcon, MapPin, LayoutGrid, Table, Banknote } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
+import SearchBar from '../../components/SearchBar';
+import { useViewedItems } from '../../hooks/useViewedItems';
+import { TabBadge, RowBadge } from '../../components/NotificationBadge';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../admin/calendar.css';
 
@@ -22,6 +27,7 @@ const localizer = momentLocalizer(moment);
 
 export default function MyEquipment() {
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   
   // Tab state
   const [activeMainTab, setActiveMainTab] = useState('equipment'); // 'equipment' | 'rentals' | 'calendar'
@@ -31,11 +37,14 @@ export default function MyEquipment() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [equipmentSearchQuery, setEquipmentSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     name: '', category: 'tractor', description: '', 
+    pricing_model: 'per_hectare',
     price_per_hectare: '',
+    price_per_equipment: '',
     municipality: '', barangay: '', province: 'Oriental Mindoro',
     latitude: '', longitude: '', image: null,
     transportation_fee_per_km: '15',
@@ -46,6 +55,8 @@ export default function MyEquipment() {
   const [receiptItem, setReceiptItem] = useState(null);
 
   // Rentals tab state  
+  // Track viewed items for notifications
+  const rentalViewed = useViewedItems('viewed_owner_rentals');
   const [allData, setAllData] = useState([]);
   const [rentalsLoading, setRentalsLoading] = useState(false);
   const [proofImage, setProofImage] = useState(null);
@@ -131,7 +142,9 @@ export default function MyEquipment() {
     setEditing(null);
     setForm({ 
       name: '', category: 'tractor', description: '', 
+      pricing_model: 'per_hectare',
       price_per_hectare: '',
+      price_per_equipment: '',
       municipality: '', barangay: '', province: 'Oriental Mindoro',
       latitude: '', longitude: '', image: null,
       transportation_fee_per_km: '15',
@@ -146,7 +159,9 @@ export default function MyEquipment() {
       name: eq.name, 
       category: eq.category, 
       description: eq.description || '',
+      pricing_model: eq.pricing_model || 'per_hectare',
       price_per_hectare: eq.price_per_hectare || '',
+      price_per_equipment: eq.price_per_equipment || '',
       municipality: eq.municipality || '', 
       barangay: eq.barangay || '',
       province: eq.province || 'Oriental Mindoro',
@@ -186,7 +201,15 @@ export default function MyEquipment() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Equipment',
+      message: 'Delete this equipment? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    if (!confirmed) return;
+    
     try {
       const url = `/owner/equipment/${id}`;
       await api.delete(url);
@@ -198,7 +221,14 @@ export default function MyEquipment() {
   };
 
   const handleArchive = async (id) => {
-    if (!confirm('Archive this equipment?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Equipment',
+      message: 'Archive this equipment?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
+    
     try {
       const url = `/owner/archived/equipment/${id}`;
       await api.patch(url);
@@ -231,9 +261,16 @@ export default function MyEquipment() {
     { id: 'rejected', label: 'Rejected', count: allEquipment.filter(e => e.status === 'rejected').length, color: 'red' },
   ];
 
-  const filteredEquipment = activeTab === 'all' 
+  const filteredEquipment = (activeTab === 'all' 
     ? allEquipment 
-    : allEquipment.filter(e => e.status === activeTab);
+    : allEquipment.filter(e => e.status === activeTab)
+  ).filter(eq =>
+    !equipmentSearchQuery || 
+    eq.name.toLowerCase().includes(equipmentSearchQuery.toLowerCase()) ||
+    eq.category.toLowerCase().includes(equipmentSearchQuery.toLowerCase()) ||
+    (eq.municipality && eq.municipality.toLowerCase().includes(equipmentSearchQuery.toLowerCase())) ||
+    (eq.barangay && eq.barangay.toLowerCase().includes(equipmentSearchQuery.toLowerCase()))
+  );
 
   const getTabColorClasses = (tabId, isActive) => {
     const colors = {
@@ -280,10 +317,17 @@ export default function MyEquipment() {
   };
 
   const handleAction = async (id, action) => {
-    const confirmMsg = action === 'approve'
-      ? 'Approve this rental? Equipment will be marked as rented.'
-      : 'Reject this rental request?';
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await confirm({
+      title: action === 'approve' ? 'Approve Rental' : 'Reject Rental',
+      message: action === 'approve' 
+        ? 'Approve this rental? Equipment will be marked as rented.'
+        : 'Reject this rental request?',
+      confirmText: action === 'approve' ? 'Approve' : 'Reject',
+      cancelText: 'Cancel',
+      danger: action === 'reject'
+    });
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/owner/rental-requests/${id}/${action}`);
       toast.success(`Rental request ${action}d.`);
@@ -295,7 +339,14 @@ export default function MyEquipment() {
 
   const handleArchiveRental = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Archive this rental request?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Rental',
+      message: 'Archive this rental request?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/owner/archived/rentals/${id}`);
       toast.success('Rental archived.');
@@ -345,6 +396,10 @@ export default function MyEquipment() {
   const totalRentalPages = Math.ceil(processed.length / perPage) || 1;
   const paginated = processed.slice((rentalPage - 1) * perPage, rentalPage * perPage);
 
+  // Calculate forwarded (new) rentals count for notifications
+  const forwardedRentals = allData.filter(r => r.status === 'forwarded');
+  const newRentalsCount = rentalViewed.getNewCount(forwardedRentals);
+
   const toggleSort = (col) => {
     if (sortCol === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
@@ -383,7 +438,15 @@ export default function MyEquipment() {
         params.equipment_id = selectedEquipment;
       }
       const response = await api.get('/owner/calendar/events', { params });
-      setEvents(response.data);
+      
+      // Convert date strings to Date objects for react-big-calendar
+      const formattedEvents = response.data.map(event => ({
+        ...event,
+        start: new Date(event.start),
+        end: new Date(event.end),
+      }));
+      
+      setEvents(formattedEvents);
     } catch (error) {
       console.error('Failed to load calendar events:', error);
       toast.error('Failed to load calendar events');
@@ -472,6 +535,7 @@ export default function MyEquipment() {
           >
             <ClipboardList className="w-4 h-4" />
             Rental Requests
+            <TabBadge count={newRentalsCount} active={activeMainTab === 'rentals'} />
           </button>
           <button
             onClick={() => setActiveMainTab('calendar')}
@@ -517,6 +581,14 @@ export default function MyEquipment() {
             </div>
           </div>
 
+          {/* Search Bar */}
+          <SearchBar
+            value={equipmentSearchQuery}
+            onChange={setEquipmentSearchQuery}
+            placeholder="Search equipment by name, category, or location..."
+            className="mb-6"
+          />
+
       {loading ? (
         <CardGridSkeleton count={4} />
       ) : allEquipment.length === 0 ? (
@@ -546,7 +618,10 @@ export default function MyEquipment() {
                       {eq.category} • {eq.barangay ? `Brgy. ${eq.barangay}, ${eq.municipality}` : eq.location || eq.municipality}
                     </p>
                     <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                      ₱{(parseFloat(eq.price_per_hectare || 0)).toLocaleString()}/hectare
+                      {eq.pricing_model === 'per_equipment' 
+                        ? `₱${(parseFloat(eq.price_per_equipment || 0)).toLocaleString()}/equipment` 
+                        : `₱${(parseFloat(eq.price_per_hectare || 0)).toLocaleString()}/hectare`
+                      }
                     </p>
                   </div>
                 </div>
@@ -652,11 +727,24 @@ export default function MyEquipment() {
             ) : (
             <div className="space-y-4">
               {processed.map((r) => (
-                <div key={r.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-5 transition-colors">
+                <div 
+                  key={r.id} 
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-5 transition-colors"
+                  onClick={() => {
+                    // Mark rental as viewed when clicked
+                    if (r.status === 'forwarded') {
+                      rentalViewed.markAsViewed(r.id);
+                    }
+                  }}
+                >
                   <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{r.equipment?.name}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{r.equipment?.category} • {r.equipment?.location}</p>
+                    <div className="flex items-center gap-2">
+                      {/* Red dot badge for new forwarded rentals */}
+                      {r.status === 'forwarded' && <RowBadge isNew={rentalViewed.isNew(r.id)} />}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{r.equipment?.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{r.equipment?.category} • {r.equipment?.location}</p>
+                      </div>
                     </div>
                     <StatusBadge status={r.status} />
                   </div>
@@ -824,11 +912,27 @@ export default function MyEquipment() {
                     {paginated.length === 0 ? (
                       <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No matching requests.</td></tr>
                     ) : paginated.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => setSelectedRow(r)}>
+                      <tr 
+                        key={r.id} 
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" 
+                        onClick={() => {
+                          // Mark rental as viewed when row is clicked
+                          if (r.status === 'forwarded') {
+                            rentalViewed.markAsViewed(r.id);
+                          }
+                          setSelectedRow(r);
+                        }}
+                      >
                         <td className="px-4 py-3 font-mono text-gray-400">{r.id}</td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900 dark:text-white">{r.equipment?.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{r.equipment?.category}</p>
+                          <div className="flex items-center gap-2">
+                            {/* Red dot badge for new forwarded rentals */}
+                            {r.status === 'forwarded' && <RowBadge isNew={rentalViewed.isNew(r.id)} />}
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{r.equipment?.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{r.equipment?.category}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900 dark:text-white">{r.renter?.name}</p>
@@ -959,19 +1063,6 @@ export default function MyEquipment() {
               <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
                 Loading calendar...
               </div>
-            ) : events.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                <CalendarDays className="w-16 h-16 mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">No rentals scheduled for this period</p>
-                <p className="text-sm text-center max-w-md">
-                  • No rental requests have been made yet
-                  <br />• All rentals are in different months
-                  <br />• Check the "Rental Requests" tab for pending requests
-                </p>
-                <p className="text-xs text-gray-400 mt-4">
-                  Viewing: {moment(calendarDate).format('MMMM YYYY')}
-                </p>
-              </div>
             ) : (
               <Calendar
                 localizer={localizer}
@@ -986,6 +1077,16 @@ export default function MyEquipment() {
                 date={calendarDate}
                 onNavigate={setCalendarDate}
                 views={['month', 'week', 'day', 'agenda']}
+                messages={{
+                  noEventsInRange: 'No rentals scheduled for this period',
+                  today: 'Today',
+                  previous: 'Back',
+                  next: 'Next',
+                  month: 'Month',
+                  week: 'Week',
+                  day: 'Day',
+                  agenda: 'Agenda',
+                }}
               />
             )}
           </div>
@@ -1011,21 +1112,95 @@ export default function MyEquipment() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per hectare (₱)</label>
-                <input 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  required 
-                  value={form.price_per_hectare}
-                  onChange={(e) => setForm({ ...form, price_per_hectare: e.target.value })}
-                  placeholder="e.g. 5000"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" 
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Enter price per hectare
-                </p>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <Banknote className="inline w-4 h-4 mr-1 -mt-0.5" />Pricing Model
+                </label>
+                
+                {/* Pricing Model Selector */}
+                <div className="flex gap-3">
+                  <label className={`flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    form.pricing_model === 'per_hectare'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="pricing_model"
+                      value="per_hectare"
+                      checked={form.pricing_model === 'per_hectare'}
+                      onChange={(e) => setForm({ ...form, pricing_model: e.target.value })}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Price per Hectare</div>
+                      <div className="text-xs opacity-75">Charge based on farm size</div>
+                    </div>
+                  </label>
+
+                  <label className={`flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    form.pricing_model === 'per_equipment'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="pricing_model"
+                      value="per_equipment"
+                      checked={form.pricing_model === 'per_equipment'}
+                      onChange={(e) => setForm({ ...form, pricing_model: e.target.value })}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Flat Rate</div>
+                      <div className="text-xs opacity-75">Fixed price per rental</div>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Conditional Price Input - Per Hectare */}
+                {form.pricing_model === 'per_hectare' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Price per Hectare (₱)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      required 
+                      value={form.price_per_hectare}
+                      onChange={(e) => setForm({ ...form, price_per_hectare: e.target.value })}
+                      placeholder="e.g. 5000"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" 
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Rental cost will be calculated: price × farm size in hectares
+                    </p>
+                  </div>
+                )}
+
+                {/* Conditional Price Input - Per Equipment */}
+                {form.pricing_model === 'per_equipment' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Price per Equipment (₱)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      required 
+                      value={form.price_per_equipment}
+                      onChange={(e) => setForm({ ...form, price_per_equipment: e.target.value })}
+                      placeholder="e.g. 3000"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" 
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Fixed flat rate - same price regardless of farm size
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1364,6 +1539,18 @@ export default function MyEquipment() {
         </div>,
         document.body
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

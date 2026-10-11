@@ -155,7 +155,13 @@ export default function RentalReceiptModal({ rental, onClose }) {
             {/* Cost breakdown */}
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">Cost Breakdown</p>
             <div className="flex justify-between">
-              <span className="text-gray-500">Base Cost (₱{fmt(eq.daily_rate)} × {rental.rental_days}d)</span>
+              <span className="text-gray-500">
+                Base Cost 
+                {eq.pricing_model === 'per_equipment' 
+                  ? ` (Flat Rate)` 
+                  : ` (₱${fmt(eq.price_per_hectare)}/ha × ${(rental.farm_size_sqm / 10000).toFixed(2)}ha)`
+                }
+              </span>
               <span className="font-medium text-gray-900">₱{fmt(rental.base_cost)}</span>
             </div>
             <div className="flex justify-between">

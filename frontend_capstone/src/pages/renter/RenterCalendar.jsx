@@ -130,12 +130,6 @@ export default function RenterCalendar() {
           <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
             Loading calendar...
           </div>
-        ) : events.length === 0 ? (
-          <div className="h-96 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-            <CalendarDays className="w-16 h-16 mb-4 opacity-50" />
-            <p>No rentals scheduled</p>
-            <p className="text-sm mt-1">Browse equipment to make a rental request</p>
-          </div>
         ) : (
           <Calendar
             localizer={localizer}
@@ -150,6 +144,9 @@ export default function RenterCalendar() {
             date={date}
             onNavigate={setDate}
             views={['month', 'week', 'day', 'agenda']}
+            messages={{
+              noEventsInRange: 'No rentals scheduled for this period. Browse equipment to make a rental request.',
+            }}
           />
         )}
       </div>

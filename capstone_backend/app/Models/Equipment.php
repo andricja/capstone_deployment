@@ -18,7 +18,9 @@ class Equipment extends Model
         'name',
         'category',
         'description',
+        'pricing_model',
         'price_per_hectare',
+        'price_per_equipment',
         'transportation_fee',
         'transportation_fee_per_km',
         'free_distance_km',
@@ -40,6 +42,7 @@ class Equipment extends Model
     {
         return [
             'price_per_hectare' => 'decimal:2',
+            'price_per_equipment' => 'decimal:2',
             'transportation_fee' => 'decimal:2',
             'transportation_fee_per_km' => 'decimal:2',
             'free_distance_km' => 'decimal:2',

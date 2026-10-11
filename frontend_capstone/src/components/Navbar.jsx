@@ -1,13 +1,13 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   Menu, X, Tractor, LogOut,
   Home, Search, ClipboardList, Mail,
-  Package, ClipboardCheck, Settings, Users, BarChart3,
-  CheckCircle, UserCheck, Megaphone, FileText,
-  Sun, Moon, ChevronRight, User, DollarSign, Wallet, CalendarDays,
-  TrendingUp,
+  Package, Settings, Users,
+  Megaphone, Sun, Moon, ChevronRight, User, DollarSign, CalendarDays,
+  TrendingUp, Archive, AlertTriangle, Wallet,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
@@ -23,6 +23,7 @@ export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingCounts, setPendingCounts] = useState({});
   const dropdownRef = useRef(null);
 
@@ -58,7 +59,13 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
+    setShowLogoutModal(false);
     navigate('/');
+  };
+
+  const confirmLogout = () => {
+    setDropdownOpen(false);
+    setShowLogoutModal(true);
   };
 
   const navLinks = getNavLinks(user?.role, pendingCounts);
@@ -89,12 +96,12 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        {/* Center: breadcrumb (desktop) */}
+        {/* Center: breadcrumb - show page title on mobile, full breadcrumb on desktop */}
         <div className="flex-1 flex items-center px-4">
-          <nav className="hidden md:flex items-center gap-1.5 text-sm">
-            <span className="text-gray-500 dark:text-gray-400">{roleLabel}</span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="text-gray-900 dark:text-white font-semibold">{pageTitle}</span>
+          <nav className="flex items-center gap-1.5 text-sm">
+            <span className="hidden md:inline text-gray-500 dark:text-gray-400">{roleLabel}</span>
+            <ChevronRight className="hidden md:inline w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            <span className="text-gray-900 dark:text-white font-semibold truncate">{pageTitle}</span>
           </nav>
         </div>
 
@@ -145,10 +152,7 @@ export default function Sidebar() {
                     Profile Settings
                   </button>
                   <button
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      handleLogout();
-                    }}
+                    onClick={confirmLogout}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
@@ -201,7 +205,7 @@ export default function Sidebar() {
         <div className="px-3 py-4 border-t border-green-700 dark:border-gray-700 shrink-0">
           {user && (
             <button
-              onClick={handleLogout}
+              onClick={confirmLogout}
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-red-300 hover:bg-green-700 dark:hover:bg-gray-700 transition-colors"
             >
               <LogOut className="w-5 h-5" />
@@ -211,6 +215,46 @@ export default function Sidebar() {
           <p className="text-[10px] text-green-500 dark:text-gray-500 text-center mt-3">FERMs v1.2.1</p>
         </div>
       </aside>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowLogoutModal(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Logout</h2>
+              </div>
+              <button onClick={() => setShowLogoutModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Are you sure you want to logout? You will need to sign in again to access your account.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
@@ -231,7 +275,7 @@ function getNavLinks(role, pendingCounts = {}) {
       return [
         { to: '/owner/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
         { to: '/owner/equipment', label: 'My Equipment & Rentals', icon: <Package className="w-5 h-5" />, badge: pendingCounts.pending_rentals || 0 },
-        { to: '/owner/sales', label: 'Sales', icon: <TrendingUp className="w-5 h-5" /> },
+        { to: '/owner/sales', label: 'Sales & Earnings', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/owner/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
       ];
     case 'admin':
@@ -239,7 +283,6 @@ function getNavLinks(role, pendingCounts = {}) {
         { to: '/admin/dashboard', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
         { to: '/admin/owners', label: 'Owners & Equipment', icon: <Users className="w-5 h-5" />, badge: (pendingCounts.pending_owners || 0) + (pendingCounts.pending_equipment || 0) },
         { to: '/admin/rentals', label: 'Rental Management', icon: <ClipboardList className="w-5 h-5" />, badge: pendingCounts.pending_rentals || 0 },
-        { to: '/admin/payments', label: 'Payment Tracker', icon: <DollarSign className="w-5 h-5" /> },
         { to: '/admin/sales', label: 'Sales & Revenue', icon: <TrendingUp className="w-5 h-5" /> },
         { to: '/admin/messages', label: 'Messages', icon: <Mail className="w-5 h-5" /> },
         { to: '/admin/ads', label: 'Manage Ads', icon: <Megaphone className="w-5 h-5" /> },

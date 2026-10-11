@@ -36,10 +36,8 @@ class RentalRequest extends Model
         'payment_proof',
         'payment_status',
         'paid_at',
-        'payment_verified_at',
-        'payment_verified_by',
         'payment_notes',
-        'amount_paid',
+        'paid_amount',
         'archived_at',
     ];
 
@@ -57,9 +55,8 @@ class RentalRequest extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'rental_days' => 'integer',
-            'amount_paid' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
             'paid_at' => 'datetime',
-            'payment_verified_at' => 'datetime',
             'archived_at' => 'datetime',
         ];
     }
@@ -76,10 +73,5 @@ class RentalRequest extends Model
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
-    }
-
-    public function paymentVerifier(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'payment_verified_by');
     }
 }

@@ -6,7 +6,8 @@ import StatusBadge from '../../components/StatusBadge';
 import { CardGridSkeleton } from '../../components/Skeleton';
 import DualLocationPicker from '../../components/DualLocationPicker';
 import AdCarousel from '../../components/AdCarousel';
-import { Search, MapPin, Ruler, Clock, Calendar, Truck, Calculator, LayoutGrid, Table, Banknote, Upload, ImageIcon } from 'lucide-react';
+import PaymentModal from '../../components/PaymentModal';
+import { Search, MapPin, Ruler, Clock, Calendar, Truck, Calculator, LayoutGrid, Table, Banknote, Upload, ImageIcon, X, CheckCircle } from 'lucide-react';
 import { useToast } from '../../components/Toast';
 
 const CATEGORIES = ['', 'tractor', 'harvester', 'planter', 'irrigation', 'cultivator', 'sprayer', 'trailer', 'other'];
@@ -39,12 +40,14 @@ export default function BrowseEquipment() {
     contact_number: '', farm_size_hectares: '', start_date: '',
     sitio_street: '', barangay: '', municipality: '', province: 'Oriental Mindoro',
     latitude: '', longitude: '',
-    payment_method: 'downpayment',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [paymentProofFile, setPaymentProofFile] = useState(null);
-  const [proofPreview, setProofPreview] = useState(null);
   const [calculatedTransportationFee, setCalculatedTransportationFee] = useState(0);
+
+  // Success and payment modals
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdRental, setCreatedRental] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Address dropdowns
   const [municipalities, setMunicipalities] = useState([]);
@@ -54,13 +57,25 @@ export default function BrowseEquipment() {
   const costBreakdown = useMemo(() => {
     if (!selected || !rentalForm.farm_size_hectares || parseFloat(rentalForm.farm_size_hectares) < 0.25) return null;
     const farmSizeHectares = parseFloat(rentalForm.farm_size_hectares);
-    const pricePerHectare = parseFloat(selected.price_per_hectare || 0);
-    const baseCost = pricePerHectare * farmSizeHectares;
+    
+    // Calculate base cost based on pricing model
+    let baseCost = 0;
+    const pricingModel = selected.pricing_model || 'per_hectare';
+    
+    if (pricingModel === 'per_hectare') {
+      // Hectare-based pricing: price per hectare × farm size
+      const pricePerHectare = parseFloat(selected.price_per_hectare || 0);
+      baseCost = pricePerHectare * farmSizeHectares;
+    } else {
+      // Flat rate pricing: fixed price regardless of farm size
+      baseCost = parseFloat(selected.price_per_equipment || 0);
+    }
+    
     const deliveryFee = calculatedTransportationFee; // Use the calculated fee from DualLocationPicker
     const totalCost = baseCost + deliveryFee;
     const estimatedHours = Math.max(Math.ceil(farmSizeHectares * 6.7 * 10) / 10, 1); // Rough estimate: 6.7 hours per hectare
     const rentalDays = Math.max(Math.ceil(estimatedHours / 8), 1);
-    return { farmSizeHectares, estimatedHours, rentalDays, baseCost, deliveryFee, totalCost, pricePerHectare };
+    return { farmSizeHectares, estimatedHours, rentalDays, baseCost, deliveryFee, totalCost, pricingModel };
   }, [selected, rentalForm.farm_size_hectares, calculatedTransportationFee]);
 
   const fetchEquipment = () => {
@@ -114,13 +129,10 @@ export default function BrowseEquipment() {
       municipality: '', 
       province: 'Oriental Mindoro',
       latitude: '', 
-      longitude: '', 
-      payment_method: 'downpayment' 
+      longitude: '',
     });
-    setPaymentProofFile(null);
-    setProofPreview(null);
     setBarangays([]);
-    setCalculatedTransportationFee(0); // Reset transportation fee
+    setCalculatedTransportationFee(0);
   };
 
   const submitRental = async (e) => {
@@ -144,15 +156,15 @@ export default function BrowseEquipment() {
       // Coordinates are required for transportation fee calculation
       formData.append('latitude', parseFloat(rentalForm.latitude) || 0);
       formData.append('longitude', parseFloat(rentalForm.longitude) || 0);
-      
-      formData.append('payment_method', rentalForm.payment_method);
-      if (paymentProofFile) formData.append('payment_proof', paymentProofFile);
 
-      await api.post('/renter/rental-requests', formData, {
+      const response = await api.post('/renter/rental-requests', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      
+      // Store created rental and show success modal
+      setCreatedRental(response.data.rental_request);
       setSelected(null);
-      navigate('/renter/rentals');
+      setShowSuccessModal(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit rental request.');
     } finally {
@@ -203,11 +215,11 @@ export default function BrowseEquipment() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Browse Equipment</h1>
         <button
           onClick={() => { setViewMode(viewMode === 'card' ? 'table' : 'card'); setPage(1); }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+          className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
         >
           {viewMode === 'card' ? <><Table className="w-4 h-4" /> Table View</> : <><LayoutGrid className="w-4 h-4" /> Card View</>}
         </button>
@@ -261,7 +273,15 @@ export default function BrowseEquipment() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{eq.description || 'No description provided.'}</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg font-bold text-green-700">₱{parseFloat(eq.price_per_hectare || 0).toLocaleString()}<span className="text-xs font-normal text-gray-500">/hectare</span></p>
+                    <p className="text-lg font-bold text-green-700">
+                      {eq.pricing_model === 'per_equipment' 
+                        ? `₱${parseFloat(eq.price_per_equipment || 0).toLocaleString()}` 
+                        : `₱${parseFloat(eq.price_per_hectare || 0).toLocaleString()}`
+                      }
+                      <span className="text-xs font-normal text-gray-500">
+                        {eq.pricing_model === 'per_equipment' ? '/equipment' : '/hectare'}
+                      </span>
+                    </p>
                     
                   </div>
                   {eq.status === 'available' ? (
@@ -346,7 +366,12 @@ export default function BrowseEquipment() {
                     <td className="px-4 py-3 capitalize">{eq.category}</td>
                     <td className="px-4 py-3">{eq.location}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-bold text-green-700">₱{parseFloat(eq.price_per_hectare || 0).toLocaleString()}/ha</p>
+                      <p className="font-bold text-green-700">
+                        {eq.pricing_model === 'per_equipment' 
+                          ? `₱${parseFloat(eq.price_per_equipment || 0).toLocaleString()}/eq` 
+                          : `₱${parseFloat(eq.price_per_hectare || 0).toLocaleString()}/ha`
+                        }
+                      </p>
                       
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={eq.status} /></td>
@@ -392,42 +417,115 @@ export default function BrowseEquipment() {
       {selected && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Request Rental</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {selected.name} <span className="capitalize">({selected.category})</span> — ₱{parseFloat(selected.price_per_hectare || 0).toLocaleString()}/hectare
-            </p>
+            {/* Header with close button */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Request Rental</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {selected.name} <span className="capitalize">({selected.category})</span> — 
+                  {selected.pricing_model === 'per_equipment' 
+                    ? ` ₱${parseFloat(selected.price_per_equipment || 0).toLocaleString()}/equipment (Flat Rate)` 
+                    : ` ₱${parseFloat(selected.price_per_hectare || 0).toLocaleString()}/hectare`
+                  }
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="ml-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
 
             <form onSubmit={submitRental} className="space-y-3">
-              {/* Farm Size — main input */}
+              {/* Pricing info banner */}
+              {selected.pricing_model === 'per_equipment' && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                  <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                    💰 Flat Rate Pricing: ₱{parseFloat(selected.price_per_equipment || 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                    This equipment has a fixed rental price regardless of farm size.
+                  </p>
+                </div>
+              )}
+
+              {/* Farm Size — conditional based on pricing model */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <Ruler className="inline w-4 h-4 mr-1 -mt-0.5" />Farm Size (hectares)
+                  {selected.pricing_model === 'per_equipment' && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(for time estimation only)</span>
+                  )}
                 </label>
-                <input type="number" min="0.25" step="0.01" required value={rentalForm.farm_size_hectares}
+                <input 
+                  type="number" 
+                  min="0.25" 
+                  step="0.01" 
+                  required 
+                  value={rentalForm.farm_size_hectares}
                   onChange={(e) => setRentalForm({ ...rentalForm, farm_size_hectares: e.target.value })}
                   placeholder="e.g. 0.5"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" />
-                <p className="text-xs text-gray-400 mt-1">Minimum 0.25 hectares (2,500 sqm) - one-fourth of a hectare.</p>
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-gray-200" 
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {selected.pricing_model === 'per_equipment' 
+                    ? 'Farm size is used to estimate working hours and rental days only.'
+                    : 'Minimum 0.25 hectares (2,500 sqm) - one-fourth of a hectare.'
+                  }
+                </p>
               </div>
 
               {/* Auto-calculated estimates — shown when farm_size_sqm is valid */}
               {costBreakdown && (
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3 flex gap-4">
-                  <div className="flex-1 text-center">
-                    <Clock className="w-4 h-4 mx-auto text-green-600 mb-1" />
-                    <p className="text-lg font-bold text-green-700">{costBreakdown.estimatedHours}</p>
-                    <p className="text-xs text-gray-500">Est. Hours</p>
-                  </div>
-                  <div className="flex-1 text-center">
-                    <Calendar className="w-4 h-4 mx-auto text-green-600 mb-1" />
-                    <p className="text-lg font-bold text-green-700">{costBreakdown.rentalDays}</p>
-                    <p className="text-xs text-gray-500">Rental Day(s)</p>
-                  </div>
-                  <div className="flex-1 text-center">
-                    <Calculator className="w-4 h-4 mx-auto text-green-600 mb-1" />
-                    <p className="text-lg font-bold text-green-700">₱{fmt(costBreakdown.totalCost)}</p>
-                    <p className="text-xs text-gray-500">Total Cost</p>
-                  </div>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                  {selected.pricing_model === 'per_equipment' ? (
+                    /* Flat Rate - Show base price separately */
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center pb-2 border-b border-green-200 dark:border-green-700">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Equipment Rental (Flat Rate)</span>
+                        <span className="text-lg font-bold text-green-700 dark:text-green-400">₱{fmt(costBreakdown.baseCost)}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="text-center">
+                          <Clock className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                          <p className="text-sm font-bold text-green-700 dark:text-green-400">{costBreakdown.estimatedHours}h</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Est. Hours</p>
+                        </div>
+                        <div className="text-center">
+                          <Calendar className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                          <p className="text-sm font-bold text-green-700 dark:text-green-400">{costBreakdown.rentalDays}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Days</p>
+                        </div>
+                        <div className="text-center">
+                          <Calculator className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                          <p className="text-sm font-bold text-green-700 dark:text-green-400">₱{fmt(costBreakdown.totalCost)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Per Hectare - Show calculation breakdown */
+                    <div className="flex gap-4">
+                      <div className="flex-1 text-center">
+                        <Clock className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                        <p className="text-lg font-bold text-green-700 dark:text-green-400">{costBreakdown.estimatedHours}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Est. Hours</p>
+                      </div>
+                      <div className="flex-1 text-center">
+                        <Calendar className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                        <p className="text-lg font-bold text-green-700 dark:text-green-400">{costBreakdown.rentalDays}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Rental Day(s)</p>
+                      </div>
+                      <div className="flex-1 text-center">
+                        <Calculator className="w-4 h-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                        <p className="text-lg font-bold text-green-700 dark:text-green-400">₱{fmt(costBreakdown.totalCost)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Total Cost</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -543,148 +641,96 @@ export default function BrowseEquipment() {
                 onFeeCalculated={(fee) => setCalculatedTransportationFee(fee)}
               />
 
-              {/* Payment Method */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Banknote className="inline w-4 h-4 mr-1 -mt-0.5" />Payment Method
-                </label>
-                <div className="flex gap-3">
-                  {[{ value: 'downpayment', label: 'GCash Down Payment' }, { value: 'fullpayment', label: 'GCash Full Payment' }].map((opt) => (
-                    <label key={opt.value}
-                      className={`flex-1 flex items-center gap-2 px-4 py-2.5 border rounded-lg cursor-pointer transition-colors ${
-                        rentalForm.payment_method === opt.value
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}>
-                      <input type="radio" name="payment_method" value={opt.value}
-                        checked={rentalForm.payment_method === opt.value}
-                        onChange={(e) => {
-                          setRentalForm({ ...rentalForm, payment_method: e.target.value });
-                        }}
-                        className="accent-green-600" />
-                      <span className="text-sm font-medium">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  💡 Payment proof required via GCash to confirm your booking
-                </p>
-              </div>
-
-              {/* GCash Payment Proof Upload - Required for both payment methods */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
-                {/* Owner QR Code */}
-                {selected.owner?.gcash_setting?.qr_code_image ? (
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
-                      {rentalForm.payment_method === 'downpayment' ? 'Pay Down Payment via GCash' : 'Pay Full Amount via GCash'}
-                    </p>
-                    <img
-                      src={`/storage/${selected.owner.gcash_setting.qr_code_image}`}
-                      alt="GCash QR Code"
-                      className="mx-auto max-w-[220px] rounded-lg border border-blue-200 shadow-sm"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {selected.owner.gcash_setting.account_name} &bull; {selected.owner.gcash_setting.account_number}
-                    </p>
-                    {rentalForm.payment_method === 'downpayment' && costBreakdown && (
-                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-2">
-                        Down Payment (50%): ₱{fmt(costBreakdown.totalCost * 0.5)}
-                      </p>
-                    )}
-                    {rentalForm.payment_method === 'fullpayment' && costBreakdown && (
-                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-2">
-                        Full Payment: ₱{fmt(costBreakdown.totalCost)}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">Owner's GCash Details</p>
-                    {selected.owner?.gcash_setting ? (
-                      <>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                          {selected.owner.gcash_setting.account_name} &bull; {selected.owner.gcash_setting.account_number}
-                        </p>
-                        {rentalForm.payment_method === 'downpayment' && costBreakdown && (
-                          <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-2">
-                            Down Payment (50%): ₱{fmt(costBreakdown.totalCost * 0.5)}
-                          </p>
-                        )}
-                        {rentalForm.payment_method === 'fullpayment' && costBreakdown && (
-                          <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-2">
-                            Full Payment: ₱{fmt(costBreakdown.totalCost)}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-red-500 dark:text-red-400">Owner has not set up GCash yet. Please contact the owner.</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Proof Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
-                    <Upload className="inline w-4 h-4 mr-1 -mt-0.5" />Upload Payment Proof <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          setPaymentProofFile(file);
-                          setProofPreview(URL.createObjectURL(file));
-                        }
-                      }}
-                      className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
-                    />
-                  </div>
-                  {proofPreview && (
-                    <div className="mt-2 relative inline-block">
-                      <img src={proofPreview} alt="Payment proof preview" className="max-h-40 rounded-lg border border-blue-200" />
-                      <button type="button" onClick={() => { setPaymentProofFile(null); setProofPreview(null); }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Upload a screenshot of your GCash payment (max 5MB)
-                  </p>
-                </div>
-              </div>
-
-              {/* Cost breakdown */}
-              {costBreakdown && (
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-sm space-y-1">
-                  <p className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Cost Breakdown</p>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Base Cost (₱{fmt(costBreakdown.pricePerHectare)}/hectare × {costBreakdown.farmSizeHectares.toLocaleString()} hectares)</span>
-                    <span>₱{fmt(costBreakdown.baseCost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600"><Truck className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />Transportation Fee</span>
-                    <span>₱{fmt(costBreakdown.deliveryFee)}</span>
-                  </div>
-                  <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-700 text-base">
-                    <span>Estimated Total</span>
-                    <span>₱{fmt(costBreakdown.totalCost)}</span>
-                  </div>
-                </div>
-              )}
-
+              {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setSelected(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-                <button type="submit" disabled={submitting || !costBreakdown || !paymentProofFile} className="flex-1 bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 disabled:opacity-50">
-                  {submitting ? 'Submitting...' : 'Confirm Booking'}
+                <button type="button" onClick={() => setSelected(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                <button type="submit" disabled={submitting || !costBreakdown} className="flex-1 bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {submitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </form>
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && createdRental && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => {setShowSuccessModal(false); navigate('/renter/rentals');}}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Request Submitted!</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Your rental request has been created successfully.
+              </p>
+
+              {/* Rental Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-6 text-left">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Request Summary</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Equipment:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{createdRental.equipment?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Total Cost:</span>
+                    <span className="font-bold text-green-600 dark:text-green-400">₱{fmt(createdRental.total_cost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">Pending Payment</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Next Step Message */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Next Step:</strong> Complete your payment to forward this request to the equipment owner for approval.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate('/renter/rentals');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Pay Later
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setShowPaymentModal(true);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 transition-colors"
+                >
+                  Go to Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && createdRental && (
+        <PaymentModal
+          rental={createdRental}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            toast.success('Payment submitted! Redirecting to My Rentals...');
+            setTimeout(() => navigate('/renter/rentals'), 1500);
+          }}
+        />
       )}
     </div>
   );

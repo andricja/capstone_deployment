@@ -1,0 +1,309 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║           FERMS NOTIFICATION SYSTEM - VISUAL GUIDE                       ║
+║                    3-Level Badge System                                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════
+  LEVEL 1: SIDEBAR - Total Pending Count (Already Working)
+═══════════════════════════════════════════════════════════════════════════
+
+┌────────────────────────────┐
+│  FERMS Navigation          │
+├────────────────────────────┤
+│  🏠 Dashboard              │
+│  📦 My Equipment           │
+│  📋 Rental Requests  (5)   │ ← Shows TOTAL: 5 pending items
+│  💰 Payments               │
+│  ⚙️  Settings              │
+└────────────────────────────┘
+
+User clicks "Rental Requests" →
+
+═══════════════════════════════════════════════════════════════════════════
+  LEVEL 2: TAB BADGES - New/Unviewed Count (NEW!)
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  My Equipment & Rentals                                              │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────┐  ┌─────────────────────┐  ┌──────────┐          │
+│  │ My Equipment │  │ Rental Requests [3] │  │ Calendar │          │
+│  └──────────────┘  └─────────────────────┘  └──────────┘          │
+│                              ↑                                       │
+│                    Red badge shows only 3 NEW                        │
+│                    (User already viewed 2 before)                    │
+└──────────────────────────────────────────────────────────────────────┘
+
+User clicks "Rental Requests" tab →
+
+═══════════════════════════════════════════════════════════════════════════
+  LEVEL 3: ROW BADGES - Individual Item Indicators (NEW!)
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Rental Requests                                                     │
+│  ┌──────────────────────────┬──────────────────────────┐            │
+│  │  [Card View]             │  [ Table View ]          │            │
+│  └──────────────────────────┴──────────────────────────┘            │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │ 🔴  Tractor XL-500                             │ ← NEW!          │
+│  │     Pending • Farm: 2.5 ha • ₱15,000           │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │ 🔴  Harvester Pro                              │ ← NEW!          │
+│  │     Pending • Farm: 3.0 ha • ₱22,000           │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │ 🔴  Planter X200                               │ ← NEW!          │
+│  │     Pending • Farm: 1.5 ha • ₱8,500            │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │     Cultivator 3000                            │ ← Already viewed│
+│  │     Pending • Farm: 2.0 ha • ₱12,000           │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │     Sprayer S-100                              │ ← Already viewed│
+│  │     Pending • Farm: 1.8 ha • ₱9,000            │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+User clicks "Tractor XL-500" →
+
+═══════════════════════════════════════════════════════════════════════════
+  AFTER CLICKING: Red Dot Disappears
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Rental Requests                                                     │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │     Tractor XL-500                             │ ← Dot GONE ✓    │
+│  │     Pending • Farm: 2.5 ha • ₱15,000           │                 │
+│  │     [Approve] [Reject] [Archive]               │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │ 🔴  Harvester Pro                              │ ← Still NEW     │
+│  │     Pending • Farm: 3.0 ha • ₱22,000           │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────┐                 │
+│  │ 🔴  Planter X200                               │ ← Still NEW     │
+│  │     Pending • Farm: 1.5 ha • ₱8,500            │                 │
+│  └────────────────────────────────────────────────┘                 │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+Tab badge updates: [3] → [2]
+
+═══════════════════════════════════════════════════════════════════════════
+  TABLE VIEW: Same Logic
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Rental Requests - Table View                                        │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──┬────────────────────────┬──────────┬──────────┬─────────────┐  │
+│  │ID│ Equipment              │ Renter   │ Farm Size│ Total Cost  │  │
+│  ├──┼────────────────────────┼──────────┼──────────┼─────────────┤  │
+│  │45│    Tractor XL-500      │ Juan D.  │ 2.5 ha   │ ₱15,000     │  │
+│  │46│ 🔴 Harvester Pro       │ Maria S. │ 3.0 ha   │ ₱22,000 ←NEW│  │
+│  │47│ 🔴 Planter X200        │ Pedro R. │ 1.5 ha   │ ₱8,500  ←NEW│  │
+│  │48│    Cultivator 3000     │ Ana L.   │ 2.0 ha   │ ₱12,000     │  │
+│  │49│    Sprayer S-100       │ Jose M.  │ 1.8 ha   │ ₱9,000      │  │
+│  └──┴────────────────────────┴──────────┴──────────┴─────────────┘  │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+Click row → Red dot disappears from that row ✓
+
+═══════════════════════════════════════════════════════════════════════════
+  LOCALSTORAGE: How It Works Behind the Scenes
+═══════════════════════════════════════════════════════════════════════════
+
+Browser LocalStorage:
+{
+  "viewed_owner_rentals": [45, 46, 47]  ← IDs of clicked items
+}
+
+When page loads:
+  → Read from localStorage
+  → Item ID 45? IN ARRAY → Don't show red dot
+  → Item ID 46? IN ARRAY → Don't show red dot
+  → Item ID 47? IN ARRAY → Don't show red dot
+  → Item ID 48? NOT IN ARRAY → Show red dot 🔴
+  → Item ID 49? NOT IN ARRAY → Show red dot 🔴
+
+When user clicks item 48:
+  → Add 48 to array: [45, 46, 47, 48]
+  → Save to localStorage
+  → Re-render: red dot disappears
+
+When user refreshes page (F5):
+  → Read from localStorage: [45, 46, 47, 48]
+  → Item 48 still IN ARRAY
+  → Red dot stays gone ✓
+
+═══════════════════════════════════════════════════════════════════════════
+  ADMIN PAGE: Owner Approvals Example
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Owners & Equipment                                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────────┐  ┌──────────────────────────┐            │
+│  │ Equipment Owners [2] │  │ Equipment Approvals [3]  │            │
+│  └──────────────────────┘  └──────────────────────────┘            │
+│           ↑                              ↑                          │
+│       2 new owners               3 new equipment items              │
+└──────────────────────────────────────────────────────────────────────┘
+
+Click "Equipment Owners" tab:
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Equipment Owners                                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────────────────────────────────────┐                    │
+│  │ 🔴 ⚠️ PENDING APPROVAL                      │ ← NEW OWNER        │
+│  │    👤 Juan Dela Cruz                        │                    │
+│  │    📧 juan@example.com                      │                    │
+│  │    📦 Equipment: 3 • ✅ Approved: 2          │                    │
+│  │    [Approve] [Reject] [Archive]             │                    │
+│  └─────────────────────────────────────────────┘                    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────┐                    │
+│  │ 🔴 ⚠️ PENDING APPROVAL                      │ ← NEW OWNER        │
+│  │    👤 Maria Santos                          │                    │
+│  │    📧 maria@example.com                     │                    │
+│  │    📦 Equipment: 2 • ✅ Approved: 1          │                    │
+│  │    [Approve] [Reject] [Archive]             │                    │
+│  └─────────────────────────────────────────────┘                    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────┐                    │
+│  │    ✅ APPROVED                               │ ← Already viewed   │
+│  │    👤 Pedro Reyes                           │                    │
+│  │    📧 pedro@example.com                     │                    │
+│  │    📦 Equipment: 5 • ✅ Approved: 5          │                    │
+│  │    [Archive]                                │                    │
+│  └─────────────────────────────────────────────┘                    │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+  COMPONENT HIERARCHY
+═══════════════════════════════════════════════════════════════════════════
+
+React Component Tree:
+
+AdminOwners
+├── useViewedItems('viewed_admin_owners')  ← Hook tracks viewed IDs
+│   └── localStorage: [12, 34, 56]
+│
+├── Tab: "Equipment Owners"
+│   └── <TabBadge count={2} />  ← Shows [2]
+│
+└── Owner Cards (loop)
+    ├── Owner #12
+    │   └── <RowBadge isNew={false} />  ← No dot (ID in storage)
+    ├── Owner #45
+    │   └── <RowBadge isNew={true} />   ← 🔴 Red dot (ID NOT in storage)
+    └── Owner #67
+        └── <RowBadge isNew={true} />   ← 🔴 Red dot (ID NOT in storage)
+
+═══════════════════════════════════════════════════════════════════════════
+  DATA FLOW: Click to Dismiss
+═══════════════════════════════════════════════════════════════════════════
+
+1. User clicks Owner #45 card
+   └─> onClick={() => ownerViewed.markAsViewed(45)}
+
+2. markAsViewed(45) executes
+   └─> viewedIds: [12, 34, 56] + 45
+   └─> viewedIds: [12, 34, 56, 45]
+
+3. Save to localStorage
+   └─> localStorage.setItem('viewed_admin_owners', '[12,34,56,45]')
+
+4. React re-renders
+   └─> ownerViewed.isNew(45) returns FALSE
+   └─> <RowBadge isNew={false} /> renders nothing
+
+5. Red dot disappears ✓
+
+6. Tab badge recalculates
+   └─> newOwnersCount: 3 → 2
+   └─> <TabBadge count={2} />
+
+═══════════════════════════════════════════════════════════════════════════
+  STORAGE KEYS REFERENCE
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────┬────────────────────────────────────────────┐
+│ Storage Key              │ What It Tracks                             │
+├──────────────────────────┼────────────────────────────────────────────┤
+│ viewed_admin_owners      │ Owner accounts viewed by admin             │
+│ viewed_admin_equipment   │ Equipment approvals viewed by admin        │
+│ viewed_owner_rentals     │ Rental requests viewed by equipment owner  │
+└──────────────────────────┴────────────────────────────────────────────┘
+
+Each stores an array of item IDs:
+  Example: [45, 67, 89, 123, 456]
+
+═══════════════════════════════════════════════════════════════════════════
+  BADGE COLORS & STYLES
+═══════════════════════════════════════════════════════════════════════════
+
+TabBadge (inactive):
+  ┌──────────────┐
+  │ My Tab  [3]  │  ← Gray badge (bg-gray-200)
+  └──────────────┘
+
+TabBadge (active):
+  ┌──────────────┐
+  │ My Tab  [3]  │  ← Red badge (bg-red-500, text-white)
+  └──────────────┘
+
+RowBadge:
+  🔴  ← Small red dot (w-2 h-2, bg-red-600, rounded-full, pulse animation)
+
+═══════════════════════════════════════════════════════════════════════════
+  SUMMARY: User Experience Flow
+═══════════════════════════════════════════════════════════════════════════
+
+Before Implementation:
+  ❌ User sees "5 pending" but doesn't know which 5
+  ❌ Must check every item manually
+  ❌ Can't tell what's new vs already seen
+  ❌ No way to mark as "read"
+
+After Implementation:
+  ✅ Sidebar shows total: "Rental Requests (5)"
+  ✅ Tab shows NEW count: "Rental Requests [3]"
+  ✅ Individual items show red dots: 🔴
+  ✅ Click item → dot disappears immediately
+  ✅ State persists → survives page refresh
+  ✅ Works in card view AND table view
+  ✅ Fast & efficient (no server calls)
+
+═══════════════════════════════════════════════════════════════════════════
+
+End of Visual Guide
+
+═══════════════════════════════════════════════════════════════════════════

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Calendar } from 'lucide-react';
 
 function ManageAds() {
@@ -20,6 +22,7 @@ function ManageAds() {
   });
   const [imageFile, setImageFile] = useState(null);
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
 
   useEffect(() => {
     fetchAds();
@@ -115,7 +118,16 @@ function ManageAds() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this ad?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Ad',
+      message: 'Are you sure you want to delete this ad? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.delete(`/admin/ads/${id}`);
       toast.success('Ad deleted successfully');
@@ -217,9 +229,9 @@ function ManageAds() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full my-8">
+            <div className="p-6 max-h-[calc(90vh-4rem)] overflow-y-auto">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{editingAd ? 'Edit Ad' : 'Create New Ad'}</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -271,6 +283,18 @@ function ManageAds() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

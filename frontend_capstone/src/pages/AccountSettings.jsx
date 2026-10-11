@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
-import { Settings, User, Lock, Eye, EyeOff, Save, Mail, Send, Server, Wallet, Archive, RotateCcw, Trash2, Users, FileText, Clock, ShieldCheck, ShieldX, X, UserCheck, UserX, Activity, Search, Filter } from 'lucide-react';
+import { Settings, User, Lock, Eye, EyeOff, Save, Mail, Send, Server, Wallet, Archive, RotateCcw, Trash2, Users, FileText, Clock, ShieldCheck, ShieldX, X, UserCheck, UserX, Activity, Search, Filter, Database, Download, HardDrive, Upload } from 'lucide-react';
 import { FormSkeleton, TableSkeleton } from '../components/Skeleton';
 import api from '../lib/api';
 import DataTable from '../components/DataTable';
@@ -11,18 +12,29 @@ import Pagination from '../components/Pagination';
 
 const TABS = {
   profile: { label: 'Profile', icon: User },
-  password: { label: 'Password', icon: Lock },
   gcash: { label: 'GCash Settings', icon: Wallet, ownerOnly: true },
   archive: { label: 'Archive', icon: Archive },
   accounts: { label: 'Accounts', icon: Users, adminOnly: true },
   auditTrail: { label: 'Audit Trail', icon: FileText, adminOnly: true },
   email: { label: 'Email Settings', icon: Server, adminOnly: true },
+  backup: { label: 'Database Backup', icon: Database, adminOnly: true },
 };
 
 export default function AccountSettings() {
   const { user, refreshUser } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
+
+  const handleTabChange = (tabKey) => {
+    if (tabKey === 'archive') {
+      // Navigate to archive page based on user role
+      const archivePath = `/${user?.role}/archive`;
+      navigate(archivePath);
+    } else {
+      setActiveTab(tabKey);
+    }
+  };
 
   const visibleTabs = Object.entries(TABS).filter(
     ([, t]) => {
@@ -48,11 +60,8 @@ export default function AccountSettings() {
 
   // SMTP form (admin only)
   const [smtpForm, setSmtpForm] = useState({
-    mail_host: 'smtp.gmail.com',
-    mail_port: 587,
     mail_username: '',
     mail_password: '',
-    mail_encryption: 'tls',
     mail_from_address: '',
     mail_from_name: 'FERMs',
   });
@@ -93,6 +102,12 @@ export default function AccountSettings() {
     search: '',
   });
 
+  // Database Backup (admin only)
+  const [backupStats, setBackupStats] = useState(null);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
   // Load GCash settings for owner
   useEffect(() => {
     if (user?.role !== 'owner') {
@@ -137,10 +152,7 @@ export default function AccountSettings() {
         if (r.data) {
           setSmtpForm((prev) => ({
             ...prev,
-            mail_host: r.data.mail_host || prev.mail_host,
-            mail_port: r.data.mail_port || prev.mail_port,
             mail_username: r.data.mail_username || '',
-            mail_encryption: r.data.mail_encryption || prev.mail_encryption,
             mail_from_address: r.data.mail_from_address || '',
             mail_from_name: r.data.mail_from_name || prev.mail_from_name,
           }));
@@ -150,66 +162,6 @@ export default function AccountSettings() {
       })
       .finally(() => setSmtpLoading(false));
   }, [user?.role]);
-
-  // Archive state
-  const [archiveData, setArchiveData] = useState({ owners: [], equipment: [], rentals: [], messages: [] });
-  const [archiveLoading, setArchiveLoading] = useState(false);
-  const [archiveLoaded, setArchiveLoaded] = useState(false);
-
-  const loadArchive = async () => {
-    setArchiveLoading(true);
-    try {
-      const role = user?.role;
-      if (role === 'admin') {
-        const res = await api.get('/admin/archived/all');
-        setArchiveData(res.data);
-      } else if (role === 'owner') {
-        const [eqRes, rentalRes] = await Promise.all([
-          api.get('/owner/archived/equipment'),
-          api.get('/owner/archived/rentals'),
-        ]);
-        setArchiveData({ owners: [], equipment: eqRes.data, rentals: rentalRes.data, messages: [] });
-      } else if (role === 'renter') {
-        const [rentalRes, msgRes] = await Promise.all([
-          api.get('/renter/archived/rentals'),
-          api.get('/renter/archived/messages'),
-        ]);
-        setArchiveData({ owners: [], equipment: [], rentals: rentalRes.data, messages: msgRes.data });
-      }
-      setArchiveLoaded(true);
-    } catch { /* ignore */ }
-    finally { setArchiveLoading(false); }
-  };
-
-  // Load archive when tab is activated
-  useEffect(() => {
-    if (activeTab === 'archive' && !archiveLoaded) loadArchive();
-  }, [activeTab]);
-
-  const handleRestore = async (type, id) => {
-    const role = user?.role;
-    const prefix = role === 'admin' ? '/admin' : role === 'owner' ? '/owner' : '/renter';
-    try {
-      await api.patch(`${prefix}/archived/${type}/${id}`);
-      toast.success('Item restored successfully.');
-      loadArchive();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to restore.');
-    }
-  };
-
-  const handlePermanentDelete = async (type, id) => {
-    if (!window.confirm('This will permanently delete this item. Are you sure?')) return;
-    const role = user?.role;
-    const prefix = role === 'admin' ? '/admin' : role === 'owner' ? '/owner' : '/renter';
-    try {
-      await api.delete(`${prefix}/archived/${type}/${id}`);
-      toast.success('Item permanently deleted.');
-      loadArchive();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete.');
-    }
-  };
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -283,6 +235,85 @@ export default function AccountSettings() {
       setSmtpTesting(false);
     }
   };
+
+  // ======================== DATABASE BACKUP ========================
+  const loadBackupStats = async () => {
+    setBackupLoading(true);
+    try {
+      const res = await api.get('/admin/backup/stats');
+      setBackupStats(res.data);
+    } catch (err) {
+      toast.error('Failed to load backup statistics.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleExportDatabase = async () => {
+    setExporting(true);
+    try {
+      const response = await api.get('/admin/backup/export', {
+        responseType: 'blob',
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ferms_backup_${new Date().toISOString().slice(0,10)}.sql`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Database exported successfully!');
+      
+      // Reload stats to show new backup
+      loadBackupStats();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to export database.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportDatabase = async () => {
+    if (!importFile) {
+      toast.error('Please select a SQL file to import.');
+      return;
+    }
+
+    if (!window.confirm('⚠️ WARNING: This will replace your current database with the imported data. This action cannot be undone. Are you sure you want to continue?')) {
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('sql_file', importFile);
+
+      const response = await api.post('/admin/backup/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      toast.success(response.data.message || 'Database imported successfully!');
+      setImportFile(null);
+      
+      // Reload stats
+      loadBackupStats();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to import database.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Load backup stats when tab is activated
+  useEffect(() => {
+    if (activeTab === 'backup' && user?.role === 'admin' && !backupStats) {
+      loadBackupStats();
+    }
+  }, [activeTab, user?.role]);
 
   // ======================== ACCOUNTS MANAGEMENT ========================
   const fetchAccounts = (f = accountsFilter) => {
@@ -493,7 +524,7 @@ export default function AccountSettings() {
           return (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
+              onClick={() => handleTabChange(key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
                 activeTab === key
                   ? 'bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm'
@@ -509,130 +540,131 @@ export default function AccountSettings() {
 
       {/* Profile Tab */}
       {activeTab === 'profile' && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors">
-          <div className="flex items-center gap-2 px-6 py-4 border-b dark:border-gray-700">
-            <User className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Information</h2>
+        <div className="space-y-6">
+          {/* Profile Information Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors">
+            <div className="flex items-center gap-2 px-6 py-4 border-b dark:border-gray-700">
+              <User className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Information</h2>
+            </div>
+            <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
+                  required
+                />
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <span className="inline-block px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-xs font-medium capitalize">
+                  {user?.role}
+                </span>
+                <span>account</span>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {profileLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
-          <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
-                required
-              />
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <span className="inline-block px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-xs font-medium capitalize">
-                {user?.role}
-              </span>
-              <span>account</span>
-            </div>
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={profileLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {profileLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
-      {/* Password Tab */}
-      {activeTab === 'password' && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors">
-          <div className="flex items-center gap-2 px-6 py-4 border-b dark:border-gray-700">
-            <Lock className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h2>
+          {/* Change Password Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors">
+            <div className="flex items-center gap-2 px-6 py-4 border-b dark:border-gray-700">
+              <Lock className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h2>
+            </div>
+            <form onSubmit={handlePasswordUpdate} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrent(!showCurrent)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNew ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNew(!showNew)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirm ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(!showConfirm)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Lock className="w-4 h-4" />
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
           </div>
-          <form onSubmit={handlePasswordUpdate} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
-              <div className="relative">
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
-              <div className="relative">
-                <input
-                  type={showNew ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
-                  required
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
-              <div className="relative">
-                <input
-                  type={showConfirm ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 transition-colors"
-                  required
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={passwordLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Lock className="w-4 h-4" />
-                {passwordLoading ? 'Updating...' : 'Update Password'}
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
@@ -705,86 +737,6 @@ export default function AccountSettings() {
                   )}
                 </button>
               </form>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Archive Tab (all roles) */}
-      {activeTab === 'archive' && (
-        <div className="space-y-6">
-          {archiveLoading ? (
-            <FormSkeleton fields={5} />
-          ) : (
-            <>
-              {/* Info banner */}
-              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
-                <p>Archived items are hidden from your main views. You can restore or permanently delete them here.</p>
-              </div>
-
-              {/* Admin: Archived Owners */}
-              {user?.role === 'admin' && (
-                <ArchiveSection title="Owners" empty="No archived owners.">
-                  {archiveData.owners.map((o) => (
-                    <ArchiveRow key={`owner-${o.id}`} onRestore={() => handleRestore('owners', o.id)} onDelete={() => handlePermanentDelete('owners', o.id)}>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white text-sm">{o.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{o.email}</p>
-                      </div>
-                      <ArchivedDate date={o.archived_at} />
-                    </ArchiveRow>
-                  ))}
-                </ArchiveSection>
-              )}
-
-              {/* Admin + Owner: Archived Equipment */}
-              {(user?.role === 'admin' || user?.role === 'owner') && (
-                <ArchiveSection title="Equipment" empty="No archived equipment.">
-                  {archiveData.equipment.map((eq) => (
-                    <ArchiveRow key={`eq-${eq.id}`} onRestore={() => handleRestore('equipment', eq.id)} onDelete={() => handlePermanentDelete('equipment', eq.id)}>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white text-sm">{eq.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{eq.category} • ₱{Number(eq.daily_rate).toLocaleString()}/day{user?.role === 'admin' && eq.owner ? ` • ${eq.owner.name}` : ''}</p>
-                      </div>
-                      <ArchivedDate date={eq.archived_at} />
-                    </ArchiveRow>
-                  ))}
-                </ArchiveSection>
-              )}
-
-              {/* All roles: Archived Rentals */}
-              <ArchiveSection title="Rental Requests" empty="No archived rental requests.">
-                {archiveData.rentals.map((r) => (
-                  <ArchiveRow key={`rental-${r.id}`} onRestore={() => handleRestore('rentals', r.id)} onDelete={() => handlePermanentDelete('rentals', r.id)}>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white text-sm">{r.equipment?.name || 'Equipment'}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {user?.role === 'renter' ? '' : `${r.renter?.name || 'Renter'} • `}
-                        {r.rental_days} day{r.rental_days > 1 ? 's' : ''} • ₱{Number(r.total_cost).toLocaleString()} • <span className="capitalize">{r.status}</span>
-                      </p>
-                    </div>
-                    <ArchivedDate date={r.archived_at} />
-                  </ArchiveRow>
-                ))}
-              </ArchiveSection>
-
-              {/* Admin + Renter: Archived Messages */}
-              {(user?.role === 'admin' || user?.role === 'renter') && (
-                <ArchiveSection title="Messages" empty="No archived messages.">
-                  {archiveData.messages.map((m) => (
-                    <ArchiveRow key={`msg-${m.id}`} onRestore={() => handleRestore('messages', m.id)} onDelete={() => handlePermanentDelete('messages', m.id)}>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white text-sm truncate max-w-md">{m.message}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {user?.role === 'admin' ? `${m.renter?.name || 'Renter'} • ` : ''}
-                          <span className="capitalize">{m.status}</span> • {m.location}
-                        </p>
-                      </div>
-                      <ArchivedDate date={m.archived_at} />
-                    </ArchiveRow>
-                  ))}
-                </ArchiveSection>
-              )}
             </>
           )}
         </div>
@@ -1312,31 +1264,6 @@ export default function AccountSettings() {
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 -mt-2">Configure email delivery for verification and notification emails</p>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP Host</label>
-                    <input
-                      name="mail_host"
-                      value={smtpForm.mail_host}
-                      onChange={handleSmtpChange}
-                      required
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200"
-                      placeholder="smtp.gmail.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
-                    <input
-                      name="mail_port"
-                      type="number"
-                      value={smtpForm.mail_port}
-                      onChange={handleSmtpChange}
-                      required
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200"
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username (Email)</label>
                   <input
@@ -1375,20 +1302,6 @@ export default function AccountSettings() {
                   <p className="text-xs text-gray-400 mt-1">
                     For Gmail: Go to Google Account &rarr; Security &rarr; 2-Step Verification &rarr; App Passwords
                   </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Encryption</label>
-                  <select
-                    name="mail_encryption"
-                    value={smtpForm.mail_encryption}
-                    onChange={handleSmtpChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200"
-                  >
-                    <option value="tls">TLS</option>
-                    <option value="ssl">SSL</option>
-                    <option value="null">None</option>
-                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1461,6 +1374,199 @@ export default function AccountSettings() {
           )}
         </div>
       )}
+
+      {/* Database Backup Tab (admin only) */}
+      {activeTab === 'backup' && user?.role === 'admin' && (
+        <div className="max-w-4xl space-y-6">
+          {backupLoading ? (
+            <FormSkeleton />
+          ) : (
+            <>
+              {/* Info Banner */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300">
+                <p>Export a complete backup of all database tables. This creates an SQL file that can be used to restore your database.</p>
+              </div>
+
+              {/* Export Button Card */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 p-6 transition-colors">
+                <div className="flex items-start gap-3 mb-6">
+                  <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Export Database</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Download a complete SQL backup of all database tables</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleExportDatabase}
+                  disabled={exporting}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-500 text-white py-3 rounded-lg font-medium hover:from-green-700 hover:to-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {exporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      Exporting Database...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Export Database Backup
+                    </>
+                  )}
+                </button>
+
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  This will download a .sql file containing all your data
+                </p>
+              </div>
+
+              {/* Import Button Card */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-red-200 dark:border-red-700 p-6 transition-colors">
+                <div className="flex items-start gap-3 mb-6">
+                  <Database className="w-5 h-5 text-red-500 dark:text-red-400" />
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Import Database</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Restore database from a SQL backup file</p>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4 flex items-start gap-2">
+                  <span className="text-yellow-600 dark:text-yellow-400 text-lg">⚠️</span>
+                  <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                    <p className="font-semibold mb-1">Warning: This action is irreversible!</p>
+                    <p>Importing will replace your current database with the backup data. Make sure to export a backup first.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select SQL Backup File
+                    </label>
+                    <input
+                      type="file"
+                      accept=".sql,.txt"
+                      onChange={(e) => setImportFile(e.target.files[0])}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-red-50 file:text-red-700 hover:file:bg-red-100 dark:file:bg-red-900/30 dark:file:text-red-400"
+                    />
+                    {importFile && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Selected: {importFile.name} ({(importFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleImportDatabase}
+                    disabled={importing || !importFile}
+                    className="w-full bg-gradient-to-r from-red-600 to-rose-500 text-white py-3 rounded-lg font-medium hover:from-red-700 hover:to-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {importing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                        Importing Database...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5" />
+                        Import Database Backup
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-xs text-gray-400 text-center">
+                    Max file size: 100MB • Supported formats: .sql, .txt
+                  </p>
+                </div>
+              </div>
+
+              {/* Database Statistics */}
+              {backupStats && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6 transition-colors">
+                  <div className="flex items-start gap-3 mb-6">
+                    <HardDrive className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Database Statistics</h2>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4">
+                      <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Database</p>
+                      <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{backupStats.database}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4">
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mb-1">Total Tables</p>
+                      <p className="text-lg font-bold text-purple-700 dark:text-purple-300">{backupStats.total_tables}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4">
+                      <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Total Rows</p>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-300">{backupStats.total_rows}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4">
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">Total Size</p>
+                      <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{backupStats.total_size}</p>
+                    </div>
+                  </div>
+
+                  {/* Tables List */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Database Tables</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Table Name</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rows</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Size</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Engine</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {backupStats.tables?.map((table, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                              <td className="px-4 py-2 text-gray-900 dark:text-gray-100 font-mono text-xs">{table.name}</td>
+                              <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">{table.rows}</td>
+                              <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">{table.size}</td>
+                              <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{table.engine}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Backups */}
+              {backupStats?.recent_backups && backupStats.recent_backups.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6 transition-colors">
+                  <div className="flex items-start gap-3 mb-4">
+                    <Clock className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Backups</h2>
+                  </div>
+
+                  <div className="space-y-3">
+                    {backupStats.recent_backups.map((backup, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                            <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{backup.filename}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{backup.created_at}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{backup.size}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1512,5 +1618,3 @@ function ArchivedDate({ date }) {
     </span>
   );
 }
-
-

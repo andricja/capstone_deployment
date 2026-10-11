@@ -73,7 +73,19 @@ class RentalRequestController extends Controller
     {
         $query = $request->user()
             ->rentalRequests()
-            ->with('equipment:id,name,category,image,price_per_hectare,transportation_fee,location,status', 'equipment.owner:id,name,email')
+            ->with([
+                'equipment' => function($query) {
+                    $query->select('id', 'name', 'category', 'image', 'price_per_hectare', 
+                                   'price_per_equipment', 'pricing_model', 'transportation_fee', 
+                                   'location', 'status', 'owner_id')
+                          ->with([
+                              'owner' => function($q) {
+                                  $q->select('id', 'name', 'email')
+                                    ->with('gcashSetting:id,owner_id,account_name,account_number,qr_code_image');
+                              }
+                          ]);
+                }
+            ])
             ->whereNull('archived_at')
             ->latest();
 
@@ -149,10 +161,19 @@ class RentalRequestController extends Controller
             'is_free' => $deliveryFee == 0,
         ];
 
-        // ── Cost breakdown (based on price per hectare) ──
-        $pricePerHectare = $equipment->price_per_hectare ?? 0;
-        $baseCost       = $pricePerHectare * $farmSizeHectares;
-        $totalCost      = $baseCost + $deliveryFee;
+        // ── Cost breakdown - depends on pricing model ──
+        $pricingModel = $equipment->pricing_model ?? 'per_hectare';
+        
+        if ($pricingModel === 'per_hectare') {
+            // Hectare-based pricing: price per hectare × farm size in hectares
+            $pricePerHectare = $equipment->price_per_hectare ?? 0;
+            $baseCost = $pricePerHectare * $farmSizeHectares;
+        } else {
+            // Flat rate pricing: fixed price per equipment regardless of farm size
+            $baseCost = $equipment->price_per_equipment ?? 0;
+        }
+        
+        $totalCost = $baseCost + $deliveryFee;
 
         // Auto-calculate end date from start date + rental days
         $startDate = \Carbon\Carbon::parse($request->input('start_date'));
@@ -165,6 +186,10 @@ class RentalRequestController extends Controller
         $province = $request->input('province', 'Oriental Mindoro');
         
         $fullAddress = trim("{$sitioStreet}, Barangay {$barangay}, {$municipality}, {$province}");
+
+        // Determine status based on payment submission
+        $hasPayment = $request->filled('payment_method') && $request->filled('paid_amount');
+        $status = $hasPayment ? 'forwarded' : 'pending_payment';
 
         $rentalRequest = RentalRequest::create([
             'renter_id'        => $user->id,
@@ -186,17 +211,103 @@ class RentalRequestController extends Controller
             'delivery_fee'     => $deliveryFee,
             'service_charge'   => 0,
             'total_cost'       => $totalCost,
-            'status'           => 'forwarded',
+            'paid_amount'      => $request->input('paid_amount'), // Amount renter actually paid
+            'status'           => $status,
             'payment_method'   => $request->input('payment_method'),
             'payment_proof'    => $request->hasFile('payment_proof')
                                     ? $request->file('payment_proof')->store('payment_proofs', 'public')
                                     : null,
         ]);
 
-        // Make equipment unavailable when rental request is created
-        $equipment->status = 'rented';
-        $equipment->save();
+        // Make equipment unavailable only if payment was submitted
+        if ($hasPayment) {
+            $equipment->status = 'rented';
+            $equipment->save();
+        }
 
+        $rentalRequest->load([
+            'equipment' => function($query) {
+                $query->with([
+                    'owner' => function($q) {
+                        $q->with('gcashSetting');
+                    }
+                ]);
+            },
+            'renter'
+        ]);
+
+        // Send notification to equipment owner only if payment was submitted
+        if ($hasPayment) {
+            try {
+                $notificationService = app(\App\Services\NotificationService::class);
+                $notificationService->notifyNewRentalRequest($rentalRequest);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send new rental request notification', ['error' => $e->getMessage()]);
+            }
+        }
+
+        $message = $hasPayment 
+            ? 'Rental request submitted and forwarded to the equipment owner.'
+            : 'Rental request created. Please complete payment to forward to equipment owner.';
+
+        return response()->json([
+            'message'        => $message,
+            'rental_request' => $rentalRequest,
+            'cost_breakdown' => [
+                'pricing_model'    => $pricingModel,
+                'farm_size_sqm'    => $farmSizeSqm,
+                'farm_size_hectares' => $farmSizeHectares,
+                'estimated_hours'  => $estimatedHours,
+                'rental_days'      => $rentalDays,
+                'price_per_hectare' => $pricingModel === 'per_hectare' ? ($equipment->price_per_hectare ?? 0) : null,
+                'price_per_equipment' => $pricingModel === 'per_equipment' ? ($equipment->price_per_equipment ?? 0) : null,
+                'base_cost'        => $baseCost,
+                'delivery_fee'     => $deliveryFee,
+                'total_cost'       => $totalCost,
+                'transportation_details' => $feeBreakdown,
+            ],
+        ], 201);
+    }
+
+    /**
+     * Submit payment for a pending rental request.
+     * Updates rental from pending_payment to forwarded status.
+     */
+    public function submitPayment(Request $request, RentalRequest $rentalRequest): JsonResponse
+    {
+        // Ensure owned by this renter
+        if ($rentalRequest->renter_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        // Only pending_payment requests can have payment submitted
+        if ($rentalRequest->status !== 'pending_payment') {
+            return response()->json(['message' => 'Payment already submitted or request is not in pending_payment status.'], 422);
+        }
+
+        $validated = $request->validate([
+            'payment_method'  => ['required', 'in:downpayment,fullpayment'],
+            'paid_amount'     => ['required', 'numeric', 'min:0'],
+            'payment_proof'   => ['required', 'image', 'max:5120'],
+        ]);
+
+        // Update rental request with payment info
+        $rentalRequest->update([
+            'payment_method' => $validated['payment_method'],
+            'paid_amount'    => $validated['paid_amount'],
+            'payment_proof'  => $request->hasFile('payment_proof')
+                                    ? $request->file('payment_proof')->store('payment_proofs', 'public')
+                                    : null,
+            'status'         => 'forwarded',
+            'payment_status' => 'paid', // Mark as paid when payment submitted
+            'paid_at'        => now(),
+        ]);
+
+        // Make equipment unavailable now that payment is submitted
+        $equipment = $rentalRequest->equipment;
+        $equipment->update(['status' => 'rented']);
+
+        // Load relationships for notification
         $rentalRequest->load('equipment.owner', 'renter');
 
         // Send notification to equipment owner about new rental request
@@ -208,20 +319,9 @@ class RentalRequestController extends Controller
         }
 
         return response()->json([
-            'message'        => 'Rental request submitted and forwarded to the equipment owner.',
-            'rental_request' => $rentalRequest,
-            'cost_breakdown' => [
-                'farm_size_sqm'    => $farmSizeSqm,
-                'farm_size_hectares' => $farmSizeHectares,
-                'estimated_hours'  => $estimatedHours,
-                'rental_days'      => $rentalDays,
-                'price_per_hectare' => $pricePerHectare,
-                'base_cost'        => $baseCost,
-                'delivery_fee'     => $deliveryFee,
-                'total_cost'       => $totalCost,
-                'transportation_details' => $feeBreakdown,
-            ],
-        ], 201);
+            'message'        => 'Payment submitted successfully. Your rental request has been forwarded to the equipment owner.',
+            'rental_request' => $rentalRequest->fresh()->load('equipment:id,name,status', 'equipment.owner:id,name'),
+        ]);
     }
 
     /* ------------------------------------------------------------------ */

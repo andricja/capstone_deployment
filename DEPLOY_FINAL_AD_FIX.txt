@@ -1,0 +1,253 @@
+═══════════════════════════════════════════════════════════════
+  🚀 FINAL DEPLOYMENT - Ads & Modal Fix
+═══════════════════════════════════════════════════════════════
+
+📦 NEW BUILD: index-DV6wvWhk.js (1.48 MB)
+📅 Created: September 20, 2026 at 01:12 AM
+✨ Fixes:
+   1. ✅ AdCarousel added to Owner Dashboard
+   2. ✅ Modal centering fixed in Manage Ads
+   3. ✅ Complete ManageAds implementation
+
+═══════════════════════════════════════════════════════════════
+  🔧 WHAT WAS FIXED
+═══════════════════════════════════════════════════════════════
+
+ISSUE 1: Ads not showing on Owner Dashboard
+  BEFORE: ❌ Owner Dashboard had NO AdCarousel component
+  AFTER:  ✅ Owner Dashboard now has AdCarousel at top
+
+ISSUE 2: Modal not centered and follows scroll
+  BEFORE: ❌ Modal moved when scrolling Manage Ads page
+  AFTER:  ✅ Modal stays perfectly centered when scrolling
+
+═══════════════════════════════════════════════════════════════
+  📤 STEP 1: UPLOAD WITH WINSCP
+═══════════════════════════════════════════════════════════════
+
+Connection Info:
+  Host: 151.106.124.153
+  Port: 65002
+  User: u798459799
+  Pass: [REDACTED - See secure password manager]
+
+Upload From (LEFT):
+  C:\Users\seanj\Downloads\capstoneclone\capstone-main\frontend_capstone\dist\
+
+Upload To (RIGHT):
+  /home/u798459799/domains/ferms.net/public_html/
+
+Files to Upload (drag & drop):
+  ✓ index.html
+  ✓ assets/ (entire folder)
+  ✓ firebase-messaging-sw.js
+  ✓ vite.svg
+
+When Prompted: Select "Overwrite" for all files
+
+═══════════════════════════════════════════════════════════════
+  🔐 STEP 2: SET PERMISSIONS (SSH)
+═══════════════════════════════════════════════════════════════
+
+ssh -i "$HOME/.ssh/ferms_deploy" -p 65002 u798459799@151.106.124.153
+
+Then run these commands:
+──────────────────────────────────────────────────────────────
+cd ~/domains/ferms.net/public_html/
+chmod 755 assets
+chmod 644 assets/*
+chmod 644 index.html firebase-messaging-sw.js vite.svg
+cat index.html | grep "index-"
+ls -lh assets/ | grep "DV6wvWhk"
+──────────────────────────────────────────────────────────────
+
+Expected Output:
+  <script ... src="/assets/index-DV6wvWhk.js"></script>
+  -rw-r--r-- ... 1.5M ... index-DV6wvWhk.js
+
+═══════════════════════════════════════════════════════════════
+  🗄️  STEP 3: CHECK IF ADS EXIST IN DATABASE
+═══════════════════════════════════════════════════════════════
+
+Still connected via SSH, run:
+──────────────────────────────────────────────────────────────
+cd ~/domains/ferms.net/public_html/capstone_backend
+mysql -u u798459799_ferms -p u798459799_ferms -e "SELECT id, title, status FROM ads;"
+──────────────────────────────────────────────────────────────
+
+(Enter MySQL password when prompted - check .env file)
+
+If NO ads found, seed them:
+──────────────────────────────────────────────────────────────
+php artisan db:seed --class=AdSeeder
+──────────────────────────────────────────────────────────────
+
+If ads exist but inactive, activate them manually via Admin panel
+
+═══════════════════════════════════════════════════════════════
+  🔗 STEP 4: ENSURE STORAGE IS LINKED
+═══════════════════════════════════════════════════════════════
+
+Still in SSH, run:
+──────────────────────────────────────────────────────────────
+cd ~/domains/ferms.net/public_html/capstone_backend
+ls -la public/ | grep storage
+
+# If NOT found, create link:
+php artisan storage:link
+chmod -R 755 storage
+chmod -R 755 public/storage
+──────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════
+  🌐 STEP 5: CLEAR CACHE & TEST
+═══════════════════════════════════════════════════════════════
+
+1. Close ALL browser tabs of https://ferms.net
+2. Press Ctrl + Shift + Delete
+3. Select "All time"
+4. Check "Cached images and files"
+5. Check "Cookies and other site data"
+6. Click "Clear data"
+7. Close browser completely
+8. Reopen browser
+
+═══════════════════════════════════════════════════════════════
+  ✅ STEP 6: TEST EVERYTHING
+═══════════════════════════════════════════════════════════════
+
+Test 1: Owner Dashboard Ads
+  ▸ Go to https://ferms.net
+  ▸ Login as Owner
+  ▸ Go to Dashboard
+  ▸ Expected: Ad carousel at TOP of page ✨
+  ▸ Ads rotate every 5 seconds
+  ▸ No errors in console (F12)
+
+Test 2: Renter Dashboard Ads
+  ▸ Login as Renter
+  ▸ Go to Dashboard
+  ▸ Expected: Ad carousel at TOP of page ✨
+  ▸ Ads rotate every 5 seconds
+  ▸ No errors in console
+
+Test 3: Admin - Create Ad Modal
+  ▸ Login as Admin
+  ▸ Go to Admin → Manage Ads
+  ▸ Click "Create Ad"
+  ▸ Expected: Modal appears CENTERED ✨
+  ▸ Scroll down on page
+  ▸ Expected: Modal STAYS CENTERED ✨
+  ▸ Fill form and create ad
+  ▸ Expected: Success message
+
+Test 4: Admin - Edit Ad Modal
+  ▸ Click Edit button on an ad
+  ▸ Expected: Modal opens centered with ad data
+  ▸ Scroll page
+  ▸ Expected: Modal stays centered
+  ▸ Update and save
+
+═══════════════════════════════════════════════════════════════
+  🚨 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Problem: Ads still not showing after deployment
+───────────────────────────────────────────────────────────────
+Solution 1: Check browser loaded new bundle
+  ▸ Press F12 → Network tab
+  ▸ Refresh page
+  ▸ Look for "index-DV6wvWhk.js" in requests
+  ▸ If shows old bundle → Clear cache again!
+
+Solution 2: Check database for active ads
+  ▸ SSH to server
+  ▸ Run: mysql -u u798459799_ferms -p u798459799_ferms
+  ▸ Run: SELECT COUNT(*) FROM ads WHERE status='active';
+  ▸ If 0 → Seed ads: php artisan db:seed --class=AdSeeder
+
+Solution 3: Check API response
+  ▸ Open browser console (F12) on dashboard
+  ▸ Run: fetch('/api/ads/active').then(r=>r.json()).then(console.log)
+  ▸ Should return array of ads
+  ▸ If 404 → API route not configured
+  ▸ If 500 → Check backend logs
+
+Solution 4: Test in Incognito mode
+  ▸ Press Ctrl + Shift + N (open incognito)
+  ▸ Go to https://ferms.net
+  ▸ Login and test
+  ▸ This bypasses ALL cache
+
+Problem: Modal still follows scroll
+───────────────────────────────────────────────────────────────
+Solution: Verify new bundle deployed
+  ▸ SSH: cat ~/domains/ferms.net/public_html/index.html | grep "index-"
+  ▸ Should show: index-DV6wvWhk.js
+  ▸ If not → Re-upload files with WinSCP
+
+Problem: Images not displaying
+───────────────────────────────────────────────────────────────
+Solution: Check storage link
+  ▸ SSH to server
+  ▸ cd ~/domains/ferms.net/public_html/capstone_backend
+  ▸ ls -la public/ | grep storage
+  ▸ If not found → php artisan storage:link
+
+═══════════════════════════════════════════════════════════════
+  📊 BUILD COMPARISON
+═══════════════════════════════════════════════════════════════
+
+Build 1 (Calendar removal):
+  Bundle: index-DMQHTsFM.js (1.55 MB)
+  Date: Sep 14, 2026
+  Fix: Removed calendar from Admin Rentals
+
+Build 2 (Ads fix - not deployed):
+  Bundle: index-BYs8xUKq.js (1.48 MB)
+  Date: Sep 20, 2026 12:45 AM
+  Fix: Added AdCarousel to Owner Dashboard
+
+Build 3 (CURRENT - Modal fix):
+  Bundle: index-DV6wvWhk.js (1.48 MB) ← DEPLOY THIS!
+  Date: Sep 20, 2026 01:12 AM
+  Fix: AdCarousel + Modal centering
+
+═══════════════════════════════════════════════════════════════
+  📝 QUICK COMMANDS REFERENCE
+═══════════════════════════════════════════════════════════════
+
+Connect to server:
+  ssh -i "$HOME/.ssh/ferms_deploy" -p 65002 u798459799@151.106.124.153
+
+Check deployed bundle:
+  cat ~/domains/ferms.net/public_html/index.html | grep "index-"
+
+Check ads in database:
+  cd ~/domains/ferms.net/public_html/capstone_backend
+  mysql -u u798459799_ferms -p u798459799_ferms -e "SELECT * FROM ads;"
+
+Seed ads:
+  cd ~/domains/ferms.net/public_html/capstone_backend
+  php artisan db:seed --class=AdSeeder
+
+Check storage link:
+  cd ~/domains/ferms.net/public_html/capstone_backend
+  ls -la public/ | grep storage
+
+Create storage link:
+  cd ~/domains/ferms.net/public_html/capstone_backend
+  php artisan storage:link
+  chmod -R 755 storage public/storage
+
+View backend logs:
+  cd ~/domains/ferms.net/public_html/capstone_backend
+  tail -50 storage/logs/laravel.log
+
+═══════════════════════════════════════════════════════════════
+
+📖 Detailed Guide: ADS_NOT_SHOWING_FIX.md
+🔧 SSH Password: [REDACTED - See secure password manager]
+🌐 Production: https://ferms.net
+
+═══════════════════════════════════════════════════════════════

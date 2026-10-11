@@ -20,7 +20,7 @@ class PaymentController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = RentalRequest::with(['renter:id,name,email', 'equipment:id,name', 'equipment.owner:id,name', 'paymentVerifier:id,name'])
+        $query = RentalRequest::with(['renter:id,name,email', 'equipment:id,name', 'equipment.owner:id,name'])
             ->whereNull('archived_at')
             ->where('status', 'approved'); // Only show approved rentals
 
@@ -60,18 +60,21 @@ class PaymentController extends Controller
      */
     public function stats(): JsonResponse
     {
+        // Total revenue from fully paid rentals
         $totalRevenue = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->sum('total_cost');
-
-        $pendingAmount = RentalRequest::where('status', 'approved')
             ->where('payment_status', 'paid')
             ->sum('total_cost');
 
-        $verifiedThisMonth = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->whereMonth('payment_verified_at', now()->month)
-            ->whereYear('payment_verified_at', now()->year)
+        // Pending payments (not yet paid)
+        $pendingAmount = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'pending')
+            ->sum('total_cost');
+
+        // Paid this month
+        $paidThisMonth = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'paid')
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
             ->sum('total_cost');
 
         $overdueAmount = RentalRequest::where('status', 'approved')
@@ -81,24 +84,24 @@ class PaymentController extends Controller
         $totalCount = RentalRequest::where('status', 'approved')->count();
         $pendingCount = RentalRequest::where('status', 'approved')->where('payment_status', 'pending')->count();
         $paidCount = RentalRequest::where('status', 'approved')->where('payment_status', 'paid')->count();
-        $verifiedCount = RentalRequest::where('status', 'approved')->where('payment_status', 'verified')->count();
         $overdueCount = RentalRequest::where('status', 'approved')->where('payment_status', 'overdue')->count();
 
         return response()->json([
             'total_revenue' => (float) $totalRevenue,
             'pending_amount' => (float) $pendingAmount,
-            'verified_this_month' => (float) $verifiedThisMonth,
+            'verified_this_month' => (float) $paidThisMonth, // Renamed but keeping key for frontend compatibility
             'overdue_amount' => (float) $overdueAmount,
             'total_count' => $totalCount,
             'pending_count' => $pendingCount,
             'paid_count' => $paidCount,
-            'verified_count' => $verifiedCount,
             'overdue_count' => $overdueCount,
         ]);
     }
 
     /**
      * Verify payment (admin only)
+     * Note: This method is deprecated since payment_status no longer has 'verified' state.
+     * Payments now go directly from 'pending' to 'paid' when renter uploads proof.
      */
     public function verifyPayment(Request $request, int $id): JsonResponse
     {
@@ -115,9 +118,6 @@ class PaymentController extends Controller
         ]);
 
         $rental->update([
-            'payment_status' => 'verified',
-            'payment_verified_at' => now(),
-            'payment_verified_by' => $request->user()->id,
             'payment_notes' => $validated['payment_notes'] ?? null,
         ]);
 
@@ -127,8 +127,8 @@ class PaymentController extends Controller
             RentalRequest::class,
             $rental->id,
             null,
-            ['payment_status' => 'verified'],
-            "Verified payment for rental #{$rental->id}"
+            ['payment_notes' => $validated['payment_notes']],
+            "Added payment notes for rental #{$rental->id}"
         );
 
         // Send notification to renter about payment verification
@@ -141,7 +141,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'message' => 'Payment verified successfully.',
-            'rental' => $rental->load(['renter', 'equipment', 'paymentVerifier']),
+            'rental' => $rental->load(['renter', 'equipment']),
         ]);
     }
 
@@ -153,7 +153,7 @@ class PaymentController extends Controller
         $rental = RentalRequest::findOrFail($id);
 
         $validated = $request->validate([
-            'payment_status' => ['required', 'in:pending,paid,verified,overdue,refunded'],
+            'payment_status' => ['required', 'in:pending,paid,overdue,refunded'],
             'payment_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -218,45 +218,46 @@ class PaymentController extends Controller
 
     /**
      * Get earnings statistics for owner
+     * Based on actual payments received (paid_amount)
      */
     public function ownerStats(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
 
         $totalEarned = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified')
+            ->where('payment_status', 'paid')
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
-            ->sum('total_cost');
+            ->sum('paid_amount');
 
         $pendingEarnings = RentalRequest::where('status', 'approved')
-            ->whereIn('payment_status', ['pending', 'paid'])
+            ->where('payment_status', 'pending')
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
             ->sum('total_cost');
 
         $thisMonthEarnings = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->whereMonth('payment_verified_at', now()->month)
-            ->whereYear('payment_verified_at', now()->year)
+            ->where('payment_status', 'paid')
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
-            ->sum('total_cost');
+            ->sum('paid_amount');
 
-        // Earnings by equipment
-        $earningsByEquipment = RentalRequest::select('equipment_id', DB::raw('SUM(total_cost) as total'))
+        // Earnings by equipment - based on actual payments
+        $earningsByEquipment = RentalRequest::select('equipment_id', DB::raw('SUM(paid_amount) as total'))
             ->where('status', 'approved')
-            ->where('payment_status', 'verified')
+            ->where('payment_status', 'paid')
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
             ->groupBy('equipment_id')
             ->with('equipment:id,name')
             ->get();
 
-        // Monthly earnings (last 6 months)
+        // Monthly earnings (last 6 months) - based on actual payments
         $monthlyEarnings = RentalRequest::select(
-                DB::raw('DATE_FORMAT(payment_verified_at, "%Y-%m") as month'),
-                DB::raw('SUM(total_cost) as total')
+                DB::raw('DATE_FORMAT(paid_at, "%Y-%m") as month'),
+                DB::raw('SUM(paid_amount) as total')
             )
             ->where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->where('payment_verified_at', '>=', now()->subMonths(6))
+            ->where('payment_status', 'paid')
+            ->where('paid_at', '>=', now()->subMonths(6))
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
             ->groupBy('month')
             ->orderBy('month')
@@ -350,6 +351,59 @@ class PaymentController extends Controller
         return response()->json([
             'message' => 'Payment proof uploaded successfully. Awaiting admin verification.',
             'rental' => $rental->fresh(),
+        ]);
+    }
+
+    /**
+     * Owner updates payment amount (for their own equipment rentals)
+     */
+    public function ownerUpdatePayment(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'paid_amount' => 'required|numeric|min:0',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $rental = RentalRequest::with(['equipment', 'renter'])
+            ->whereHas('equipment', fn ($q) => $q->where('owner_id', $request->user()->id))
+            ->findOrFail($id);
+
+        // Only allow editing if status is approved
+        if ($rental->status !== 'approved') {
+            return response()->json(['message' => 'Can only edit approved rentals'], 403);
+        }
+
+        $oldPaidAmount = $rental->paid_amount;
+        $rental->paid_amount = $request->paid_amount;
+        
+        // Auto-update payment status to "paid" when paid_amount >= total_cost
+        if ($rental->paid_amount >= $rental->total_cost && $rental->payment_status !== 'verified') {
+            $rental->payment_status = 'paid';
+            $rental->paid_at = $rental->paid_at ?? now();
+        }
+        
+        if ($request->filled('notes')) {
+            $rental->payment_notes = ($rental->payment_notes ? $rental->payment_notes . "\n\n" : '') . 
+                "[" . now()->format('Y-m-d H:i') . "] Owner updated paid amount from ₱" . 
+                number_format($oldPaidAmount, 2) . " to ₱" . number_format($request->paid_amount, 2) . 
+                ": " . $request->notes;
+        }
+
+        $rental->save();
+
+        // Log audit
+        AuditService::log(
+            'owner_update_payment',
+            RentalRequest::class,
+            $rental->id,
+            ['paid_amount' => $oldPaidAmount],
+            ['paid_amount' => $rental->paid_amount, 'payment_status' => $rental->payment_status],
+            "Owner updated paid amount for rental #{$rental->id}"
+        );
+
+        return response()->json([
+            'message' => 'Payment amount updated successfully',
+            'rental' => $rental->fresh(['renter:id,name,email', 'equipment:id,name']),
         ]);
     }
 }

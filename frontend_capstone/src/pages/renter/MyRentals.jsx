@@ -4,7 +4,8 @@ import api from '../../lib/api';
 import StatusBadge from '../../components/StatusBadge';
 import { ListPageSkeleton } from '../../components/Skeleton';
 import RentalReceiptModal from '../../components/RentalReceiptModal';
-import { Eye, LayoutGrid, Table, Banknote, Archive } from 'lucide-react';
+import PaymentModal from '../../components/PaymentModal';
+import { Eye, LayoutGrid, Table, Banknote, Archive, CreditCard } from 'lucide-react';
 import { useToast } from '../../components/Toast';
 import Tooltip from '../../components/Tooltip';
 
@@ -14,8 +15,12 @@ export default function MyRentals() {
   const [receiptItem, setReceiptItem] = useState(null);
   const [proofImage, setProofImage] = useState(null);
   const [viewMode, setViewMode] = useState('card');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'forwarded' | 'approved' | 'rejected'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'forwarded' | 'approved' | 'rejected' | 'pending_payment'
   const toast = useToast();
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedRentalForPayment, setSelectedRentalForPayment] = useState(null);
 
   // DataTable state
   const [search, setSearch] = useState('');
@@ -27,7 +32,15 @@ export default function MyRentals() {
   const fetchAll = () => {
     setLoading(true);
     api.get('/renter/rental-requests', { params: { all: 1 } })
-      .then((r) => setAllData(Array.isArray(r.data) ? r.data : r.data?.data || []))
+      .then((r) => {
+        const data = Array.isArray(r.data) ? r.data : r.data?.data || [];
+        console.log('MyRentals API response:', r.data);
+        console.log('First rental:', data[0]);
+        console.log('First rental equipment:', data[0]?.equipment);
+        console.log('First rental owner:', data[0]?.equipment?.owner);
+        console.log('First rental gcash:', data[0]?.equipment?.owner?.gcash_setting);
+        setAllData(data);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -106,6 +119,7 @@ export default function MyRentals() {
       <div className="flex items-center gap-2 mb-6">
         {[
           { key: 'all', label: 'All' },
+          { key: 'pending_payment', label: 'Pending Payment' },
           { key: 'forwarded', label: 'Pending' },
           { key: 'approved', label: 'Approved' },
           { key: 'rejected', label: 'Rejected' },
@@ -118,6 +132,7 @@ export default function MyRentals() {
                 ? f.key === 'approved' ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
                   : f.key === 'rejected' ? 'bg-red-500 text-white shadow-sm'
                   : f.key === 'forwarded' ? 'bg-blue-600 text-white shadow-sm'
+                  : f.key === 'pending_payment' ? 'bg-yellow-600 text-white shadow-sm'
                   : 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
@@ -165,11 +180,13 @@ export default function MyRentals() {
                 <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
                   r.payment_method === 'downpayment' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 
                   r.payment_method === 'fullpayment' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 
-                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                  r.payment_method === 'cod' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' :
+                  'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
                 }`}>
                   {r.payment_method === 'downpayment' ? 'GCash Down Payment (50%)' : 
                    r.payment_method === 'fullpayment' ? 'GCash Full Payment (100%)' : 
-                   r.payment_method === 'gcash' ? 'GCash' : 'COD'}
+                   r.payment_method === 'cod' ? 'Cash on Delivery' : 
+                   r.payment_method || 'Not Specified'}
                 </span>
                 {r.payment_proof && (
                   <button onClick={() => setProofImage(`/storage/${r.payment_proof}`)}
@@ -183,6 +200,19 @@ export default function MyRentals() {
                   {r.equipment?.owner && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Owner: {r.equipment.owner.name} ({r.equipment.owner.email})</p>}
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {r.status === 'pending_payment' && (
+                    <Tooltip text="Make Payment">
+                      <button
+                        onClick={() => {
+                          setSelectedRentalForPayment(r);
+                          setShowPaymentModal(true);
+                        }}
+                        className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors animate-pulse"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                      </button>
+                    </Tooltip>
+                  )}
                   <Tooltip text="View Receipt">
                     <button
                       onClick={() => setReceiptItem(r)}
@@ -268,6 +298,19 @@ export default function MyRentals() {
                     <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        {r.status === 'pending_payment' && (
+                          <Tooltip text="Make Payment">
+                            <button
+                              onClick={() => {
+                                setSelectedRentalForPayment(r);
+                                setShowPaymentModal(true);
+                              }}
+                              className="p-1.5 text-green-600 bg-green-50 rounded hover:bg-green-100 animate-pulse"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
+                        )}
                         <Tooltip text="View Receipt">
                           <button onClick={() => setReceiptItem(r)}
                             className="p-1.5 text-blue-600 bg-blue-50 rounded hover:bg-blue-100">
@@ -309,6 +352,23 @@ export default function MyRentals() {
 
       {/* Rental receipt modal */}
       {receiptItem && <RentalReceiptModal rental={receiptItem} onClose={() => setReceiptItem(null)} />}
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedRentalForPayment && (
+        <PaymentModal
+          rental={selectedRentalForPayment}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedRentalForPayment(null);
+          }}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            setSelectedRentalForPayment(null);
+            toast.success('Payment submitted successfully!');
+            fetchAll(); // Refresh the list
+          }}
+        />
+      )}
 
       {/* Payment proof image modal */}
       {proofImage && createPortal(

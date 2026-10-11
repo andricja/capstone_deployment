@@ -1,0 +1,270 @@
+═══════════════════════════════════════════════════════════════
+  QUICK WINS DEPLOYMENT - COPY/PASTE COMMANDS
+═══════════════════════════════════════════════════════════════
+
+🚨 STEP 1: CHANGE PASSWORD (CRITICAL - 5 min)
+─────────────────────────────────────────────────────────
+
+ssh -p 65002 u798459799@151.106.124.153
+passwd
+# Current: gF2vAFf992Y4_wY
+# New: [ENTER STRONG PASSWORD]
+# Confirm: [SAME PASSWORD]
+exit
+
+
+🔧 STEP 2: DEPLOY BACKEND (15 min)
+─────────────────────────────────────────────────────────
+
+# SSH to server
+ssh -p 65002 u798459799@151.106.124.153
+
+# Navigate to backend
+cd ~/domains/ferms.net/public_html/capstone_backend
+
+# Run migration (adds database indexes)
+php artisan migrate
+
+# Make backup script executable
+chmod +x backup.sh
+
+# Test backup
+./backup.sh
+
+# Set up cron job (daily backups at 2 AM)
+crontab -e
+# Press 'i' to enter insert mode
+# Add this line at the end:
+0 2 * * * /home/u798459799/domains/ferms.net/public_html/capstone_backend/backup.sh >> /home/u798459799/backups/backup.log 2>&1
+# Press ESC, then type: :wq and press ENTER
+
+# Verify cron job
+crontab -l | grep backup
+
+# Clear Laravel cache
+php artisan config:clear
+php artisan route:clear
+php artisan cache:clear
+
+# Verify indexes
+mysql -u u798459799_ferms -p u798459799_ferms -e "SHOW INDEX FROM equipment WHERE Key_name LIKE 'idx_%';"
+
+# Exit SSH
+exit
+
+
+📦 STEP 3: DEPLOY FRONTEND (10 min)
+─────────────────────────────────────────────────────────
+
+# From your local machine (Windows PowerShell or Git Bash)
+cd C:\Users\seanj\Downloads\capstoneclone\capstone-main
+
+# Upload index.html
+scp -P 65002 -i ~/.ssh/ferms_deploy frontend_capstone/dist/index.html u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+# Upload JavaScript
+scp -P 65002 -i ~/.ssh/ferms_deploy frontend_capstone/dist/assets/index-CAfQ30qb.js u798459799@151.106.124.153:~/domains/ferms.net/public_html/assets/
+
+# Upload CSS
+scp -P 65002 -i ~/.ssh/ferms_deploy frontend_capstone/dist/assets/index-D4vbesvv.css u798459799@151.106.124.153:~/domains/ferms.net/public_html/assets/
+
+# SSH to set permissions
+ssh -p 65002 u798459799@151.106.124.153
+
+# Set permissions
+chmod 644 ~/domains/ferms.net/public_html/index.html
+chmod 644 ~/domains/ferms.net/public_html/assets/index-CAfQ30qb.js
+chmod 644 ~/domains/ferms.net/public_html/assets/index-D4vbesvv.css
+
+# Verify files
+ls -lh ~/domains/ferms.net/public_html/assets/ | grep CAfQ30qb
+
+# Exit SSH
+exit
+
+
+✅ STEP 4: VERIFY DEPLOYMENT (5 min)
+─────────────────────────────────────────────────────────
+
+Test 1: Frontend Loaded
+------------------------
+1. Open browser: https://ferms.net
+2. Press F12 (DevTools)
+3. Go to Network tab
+4. Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
+5. Look for: index-CAfQ30qb.js
+   ✓ Should see the new file
+
+Test 2: Search Works
+--------------------
+1. Login as Owner
+2. Go to "My Equipment"
+3. ✓ Search bar should be visible below tabs
+4. Type equipment name
+5. ✓ Should filter instantly
+
+Test 3: HTTPS Redirect
+----------------------
+1. Open browser
+2. Visit: http://ferms.net (note: http not https)
+3. ✓ Should redirect to: https://ferms.net
+
+Test 4: Rate Limiting
+---------------------
+1. Open browser console (F12)
+2. Paste this code:
+
+for (let i = 1; i <= 7; i++) {
+  fetch('https://ferms.net/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'test@test.com', password: 'wrong' })
+  })
+  .then(r => r.json())
+  .then(data => console.log(`Attempt ${i}:`, data));
+}
+
+3. ✓ Attempts 1-5: Login error
+4. ✓ Attempts 6-7: "Too many login attempts" (429 error)
+
+Test 5: Database Indexes
+-------------------------
+ssh -p 65002 u798459799@151.106.124.153
+mysql -u u798459799_ferms -p u798459799_ferms -e "SHOW INDEX FROM equipment WHERE Key_name LIKE 'idx_%';"
+# ✓ Should see multiple idx_equipment_* indexes
+exit
+
+Test 6: Backup Working
+----------------------
+ssh -p 65002 u798459799@151.106.124.153
+ls -lh ~/backups/ferms_backup_*.sql.gz
+# ✓ Should see backup file with today's date
+exit
+
+
+📊 STEP 5: MONITOR PERFORMANCE (Optional)
+─────────────────────────────────────────────────────────
+
+Check Dashboard Speed
+---------------------
+1. Login to system
+2. Open DevTools (F12) → Network tab
+3. Navigate to Dashboard
+4. Look at load time
+5. ✓ Should be 30-50% faster than before
+
+Check Backup Logs (Next Day)
+-----------------------------
+ssh -p 65002 u798459799@151.106.124.153
+cat ~/backups/backup.log
+# ✓ Should show successful backup at 2:00 AM
+exit
+
+Check Rate Limiting (Ongoing)
+------------------------------
+ssh -p 65002 u798459799@151.106.124.153
+cd ~/domains/ferms.net/public_html/capstone_backend
+tail -f storage/logs/laravel.log | grep "429"
+# ✓ Will show entries when users hit rate limits
+# Press Ctrl+C to stop
+exit
+
+
+═══════════════════════════════════════════════════════════════
+
+🎯 QUICK CHECKLIST
+
+Before deployment:
+□ Read QUICK_WINS_REVIEW_AND_NEXT_STEPS.md
+□ Have SSH access ready
+□ Have strong new password ready
+
+Backend deployment:
+□ Changed server password
+□ Ran database migration
+□ Set up backup script
+□ Scheduled cron job
+□ Cleared Laravel cache
+
+Frontend deployment:
+□ Uploaded index.html
+□ Uploaded index-CAfQ30qb.js
+□ Uploaded index-D4vbesvv.css
+□ Set file permissions
+
+Verification:
+□ New build loads
+□ Search bar works
+□ HTTPS redirects
+□ Rate limiting works
+□ Indexes created
+□ Backup works
+□ No errors
+
+═══════════════════════════════════════════════════════════════
+
+🚨 TROUBLESHOOTING
+
+Migration Error: "Migration already run"
+----------------------------------------
+# Check migration status
+php artisan migrate:status
+# If already run, indexes should exist
+# Verify with:
+mysql -u u798459799_ferms -p u798459799_ferms -e "SHOW INDEX FROM equipment;"
+
+Backup Script Error: "Permission denied"
+----------------------------------------
+# Make sure it's executable
+chmod +x backup.sh
+# Or run with bash:
+bash backup.sh
+
+Frontend Not Loading: Still see old build
+------------------------------------------
+# Hard refresh browser
+Ctrl+Shift+R (Windows)
+Cmd+Shift+R (Mac)
+# Or clear browser cache completely
+
+Rate Limiting Not Working
+-------------------------
+# Clear config cache
+php artisan config:clear
+# Verify APP_ENV
+cat .env | grep APP_ENV
+# Should be: APP_ENV=production
+
+Cron Job Not Scheduling
+------------------------
+# Make sure you saved the crontab file
+# Press ESC then :wq to save in vim/vi
+# Or Ctrl+X, then Y, then ENTER in nano
+# Verify with:
+crontab -l
+
+═══════════════════════════════════════════════════════════════
+
+⏱️  TOTAL TIME: ~30 minutes
+
+Step 1: 5 min (change password)
+Step 2: 15 min (backend deployment)
+Step 3: 10 min (frontend deployment)
+Step 4: 5 min (verification)
+
+═══════════════════════════════════════════════════════════════
+
+📞 NEED MORE HELP?
+
+Read these documents:
+1. QUICK_WINS_REVIEW_AND_NEXT_STEPS.md (comprehensive)
+2. DEPLOY_QUICK_WINS_NOW.md (step-by-step)
+3. ALL_10_QUICK_WINS_COMPLETE.md (technical details)
+
+═══════════════════════════════════════════════════════════════
+
+✅ YOU'RE READY!
+
+Copy these commands, paste into terminal, and deploy! 🚀
+
+═══════════════════════════════════════════════════════════════

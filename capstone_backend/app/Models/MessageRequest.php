@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MessageRequest extends Model
 {
@@ -34,5 +35,10 @@ class MessageRequest extends Model
     public function renter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'renter_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(MessageReply::class)->orderBy('created_at', 'asc');
     }
 }

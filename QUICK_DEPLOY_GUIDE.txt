@@ -1,0 +1,119 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                 NOTIFICATION SYSTEM - QUICK DEPLOY                    ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+STATUS: ✅ BUILT & READY TO DEPLOY
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ STEP 1: DEPLOY (Run in terminal)                                     ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+scp -P 65002 -r frontend_capstone/dist/* u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+(Enter your SSH password when prompted)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ STEP 2: CLEAR CACHE (CRITICAL!)                                      ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Press: Ctrl + Shift + Delete
+Select: "Cached images and files"
+Click: "Clear data"
+
+OR Hard Refresh: Ctrl + Shift + R
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ STEP 3: TEST                                                          ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+AS ADMIN:
+  1. Login → https://ferms.net/admin/login
+  2. Go to "Owners & Equipment"
+  3. Check: Tab badges show counts [2]
+  4. Check: Red dots on pending items
+  5. Click: Red dot disappears ✓
+
+AS OWNER:
+  1. Login → https://ferms.net/owner/login
+  2. Go to "My Equipment & Rentals"
+  3. Click: "Rental Requests" tab
+  4. Check: Badge shows count [3]
+  5. Check: Red dots on new rentals
+  6. Click: Red dot disappears ✓
+  7. Refresh: Dots stay gone ✓
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ WHAT YOU'LL SEE                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+BEFORE:
+  Sidebar: "Rental Requests (5)"
+  Problem: Which 5? Can't tell!
+
+AFTER:
+  Sidebar: "Rental Requests (5)"
+  Tab: "Rental Requests [3]" ← 3 are NEW
+  List: 🔴 Item 1 (new)
+        🔴 Item 2 (new)
+        🔴 Item 3 (new)
+           Item 4 (already viewed)
+           Item 5 (already viewed)
+
+Click item → 🔴 disappears
+Refresh → Still gone (localStorage)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ TROUBLESHOOTING                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Problem: Dots not showing
+Fix: Clear cache + hard refresh
+
+Problem: Dots won't disappear
+Fix: Check console (F12) for errors
+
+Problem: Dots come back after refresh
+Fix: Check localStorage in DevTools
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ FILES CHANGED                                                         ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+✅ frontend_capstone/src/hooks/useViewedItems.js (NEW)
+✅ frontend_capstone/src/components/NotificationBadge.jsx (NEW)
+✅ frontend_capstone/src/pages/admin/AdminOwners.jsx (MODIFIED)
+✅ frontend_capstone/src/pages/owner/MyEquipment.jsx (MODIFIED)
+
+Build: 25.12 seconds
+Size: 1.56 MB JS (430 KB gzipped)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ FEATURES                                                              ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+✅ Tab badges (show count of new items)
+✅ Row badges (red dots on individual items)
+✅ Click to dismiss (dots vanish on click)
+✅ Persistent (survives page refresh)
+✅ Works in card view
+✅ Works in table view
+✅ Uses localStorage (no server calls)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ DOCUMENTATION                                                         ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+📄 NOTIFICATION_SYSTEM_COMPLETE_SUMMARY.md - Complete overview
+📄 NOTIFICATION_BADGE_IMPLEMENTATION_COMPLETE.md - Technical guide
+📄 DEPLOY_NOTIFICATION_SYSTEM_NOW.md - Deployment guide
+📄 FINAL_DEPLOYMENT_INSTRUCTIONS.txt - Step-by-step instructions
+📄 QUICK_DEPLOY_GUIDE.txt - This file
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║ READY? LET'S GO!                                                      ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Run deployment command, clear cache, and test!
+
+Date: April 11, 2026
+Status: 🎉 READY FOR PRODUCTION

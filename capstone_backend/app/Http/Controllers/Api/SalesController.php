@@ -14,6 +14,7 @@ class SalesController extends Controller
 {
     /**
      * Admin sales dashboard - System-wide analytics
+     * Tracks ADMIN REVENUE ONLY (approval fees + service charges)
      */
     public function adminDashboard(Request $request): JsonResponse
     {
@@ -22,71 +23,107 @@ class SalesController extends Controller
             'end_date' => ['nullable', 'date'],
         ]);
 
-        $query = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified');
+        // ── Admin Revenue from Service Charges (per rental) ──
+        $serviceChargeQuery = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'paid');
 
         if ($request->filled('start_date')) {
-            $query->whereDate('payment_verified_at', '>=', $request->start_date);
+            $serviceChargeQuery->whereDate('paid_at', '>=', $request->start_date);
         }
         if ($request->filled('end_date')) {
-            $query->whereDate('payment_verified_at', '<=', $request->end_date);
+            $serviceChargeQuery->whereDate('paid_at', '<=', $request->end_date);
         }
 
-        // Key Metrics
-        $totalRevenue = (float) $query->sum('total_cost');
-        $totalBookings = $query->count();
-        $avgTransactionValue = $totalBookings > 0 ? $totalRevenue / $totalBookings : 0;
+        $totalServiceCharges = (float) $serviceChargeQuery->sum('service_charge');
+        $totalBookings = $serviceChargeQuery->count();
+
+        // ── Admin Revenue from Equipment Approval Fees (one-time) ──
+        $approvalFeeQuery = Equipment::whereNotNull('approved_at')
+            ->whereNotNull('approval_fee');
+
+        if ($request->filled('start_date')) {
+            $approvalFeeQuery->whereDate('approved_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $approvalFeeQuery->whereDate('approved_at', '<=', $request->end_date);
+        }
+
+        $totalApprovalFees = (float) $approvalFeeQuery->sum('approval_fee');
+        $totalApprovals = $approvalFeeQuery->count();
+
+        // ── Total Admin Revenue ──
+        $totalRevenue = $totalServiceCharges + $totalApprovalFees;
+        $avgTransactionValue = $totalBookings > 0 ? $totalServiceCharges / $totalBookings : 0;
         $activeEquipment = Equipment::where('status', 'available')->count();
 
-        // Previous period for comparison
-        $previousPeriodQuery = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified');
+        // ── Previous Period Comparison ──
+        $previousServiceQuery = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'paid');
+        $previousApprovalQuery = Equipment::whereNotNull('approved_at')
+            ->whereNotNull('approval_fee');
         
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $daysDiff = now()->parse($request->end_date)->diffInDays(now()->parse($request->start_date));
             $previousStart = now()->parse($request->start_date)->subDays($daysDiff);
             $previousEnd = now()->parse($request->start_date);
-            $previousPeriodQuery->whereBetween('payment_verified_at', [$previousStart, $previousEnd]);
+            $previousServiceQuery->whereBetween('paid_at', [$previousStart, $previousEnd]);
+            $previousApprovalQuery->whereBetween('approved_at', [$previousStart, $previousEnd]);
         } else {
-            $previousPeriodQuery->whereMonth('payment_verified_at', now()->subMonth()->month)
-                ->whereYear('payment_verified_at', now()->subMonth()->year);
+            $previousServiceQuery->whereMonth('paid_at', now()->subMonth()->month)
+                ->whereYear('paid_at', now()->subMonth()->year);
+            $previousApprovalQuery->whereMonth('approved_at', now()->subMonth()->month)
+                ->whereYear('approved_at', now()->subMonth()->year);
         }
 
-        $previousRevenue = (float) $previousPeriodQuery->sum('total_cost');
+        $previousServiceRevenue = (float) $previousServiceQuery->sum('service_charge');
+        $previousApprovalRevenue = (float) $previousApprovalQuery->sum('approval_fee');
+        $previousRevenue = $previousServiceRevenue + $previousApprovalRevenue;
         $revenueGrowth = $previousRevenue > 0 ? (($totalRevenue - $previousRevenue) / $previousRevenue) * 100 : 0;
 
-        // Top Equipment by Revenue
+        // ── Top Equipment by Service Charges (admin commission) ──
         $topEquipment = Equipment::select('equipment.*')
             ->withCount(['rentalRequests' => function ($q) {
-                $q->where('status', 'approved')->where('payment_status', 'verified');
+                $q->where('status', 'approved')->where('payment_status', 'paid');
             }])
-            ->withSum(['rentalRequests as total_revenue' => function ($q) {
-                $q->where('status', 'approved')->where('payment_status', 'verified');
-            }], 'total_cost')
+            ->withSum(['rentalRequests as admin_revenue' => function ($q) {
+                $q->where('status', 'approved')->where('payment_status', 'paid');
+            }], 'service_charge')
             ->with('owner:id,name')
-            ->having('total_revenue', '>', 0)
-            ->orderByDesc('total_revenue')
+            ->having('admin_revenue', '>', 0)
+            ->orderByDesc('admin_revenue')
             ->limit(10)
             ->get();
 
-        // Revenue by Owner
+        // ── Revenue by Owner (equipment approval fees) ──
         $revenueByOwner = User::where('role', 'owner')
             ->select('users.id', 'users.name')
-            ->withSum(['equipment as total_revenue' => function ($q) {
+            ->withSum(['equipment as total_approval_fees' => function ($q) {
+                $q->whereNotNull('approved_at')->whereNotNull('approval_fee');
+            }], 'approval_fee')
+            ->withSum(['equipment as total_service_charges' => function ($q) {
                 $q->join('rental_requests', 'equipment.id', '=', 'rental_requests.equipment_id')
                     ->where('rental_requests.status', 'approved')
-                    ->where('rental_requests.payment_status', 'verified');
-            }], 'rental_requests.total_cost')
-            ->having('total_revenue', '>', 0)
-            ->orderByDesc('total_revenue')
+                    ->where('rental_requests.payment_status', 'paid');
+            }], 'rental_requests.service_charge')
+            ->orderByDesc('total_approval_fees')
+            ->having('total_approval_fees', '>', 0)
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(function ($owner) {
+                $owner->total_admin_revenue = ($owner->total_approval_fees ?? 0) + ($owner->total_service_charges ?? 0);
+                return $owner;
+            })
+            ->sortByDesc('total_admin_revenue')
+            ->values();
 
         return response()->json([
             'metrics' => [
                 'total_revenue' => $totalRevenue,
+                'service_charge_revenue' => $totalServiceCharges,
+                'approval_fee_revenue' => $totalApprovalFees,
                 'total_bookings' => $totalBookings,
-                'avg_transaction_value' => round($avgTransactionValue, 2),
+                'total_approvals' => $totalApprovals,
+                'avg_service_charge' => round($avgTransactionValue, 2),
                 'active_equipment' => $activeEquipment,
                 'revenue_growth' => round($revenueGrowth, 2),
             ],
@@ -97,6 +134,7 @@ class SalesController extends Controller
 
     /**
      * Revenue trends over time
+     * Tracks admin revenue (service charges + approval fees)
      */
     public function revenueOverTime(Request $request): JsonResponse
     {
@@ -104,24 +142,20 @@ class SalesController extends Controller
             'period' => ['required', 'in:daily,weekly,monthly,yearly'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date'],
-            'owner_id' => ['nullable', 'integer'], // For owner-specific trends
         ]);
 
         $period = $request->period;
-        $query = RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified');
 
-        // Filter by owner if specified (for owner dashboard)
-        if ($request->filled('owner_id')) {
-            $query->whereHas('equipment', fn ($q) => $q->where('owner_id', $request->owner_id));
-        }
+        // ── Service Charges Query ──
+        $serviceQuery = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'paid');
 
         // Date range
         if ($request->filled('start_date')) {
-            $query->whereDate('payment_verified_at', '>=', $request->start_date);
+            $serviceQuery->whereDate('paid_at', '>=', $request->start_date);
         }
         if ($request->filled('end_date')) {
-            $query->whereDate('payment_verified_at', '<=', $request->end_date);
+            $serviceQuery->whereDate('paid_at', '<=', $request->end_date);
         }
 
         // Group by period
@@ -132,30 +166,86 @@ class SalesController extends Controller
             'yearly' => '%Y',
         };
 
-        $trends = $query->select(
-                DB::raw("DATE_FORMAT(payment_verified_at, '{$dateFormat}') as period"),
-                DB::raw('SUM(total_cost) as revenue'),
+        $serviceTrends = $serviceQuery->select(
+                DB::raw("DATE_FORMAT(paid_at, '{$dateFormat}') as period"),
+                DB::raw('SUM(service_charge) as service_revenue'),
                 DB::raw('COUNT(*) as bookings')
             )
             ->groupBy('period')
             ->orderBy('period')
-            ->get();
+            ->get()
+            ->keyBy('period');
+
+        // ── Approval Fees Query ──
+        $approvalQuery = Equipment::whereNotNull('approved_at')
+            ->whereNotNull('approval_fee');
+
+        if ($request->filled('start_date')) {
+            $approvalQuery->whereDate('approved_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $approvalQuery->whereDate('approved_at', '<=', $request->end_date);
+        }
+
+        $approvalTrends = $approvalQuery->select(
+                DB::raw("DATE_FORMAT(approved_at, '{$dateFormat}') as period"),
+                DB::raw('SUM(approval_fee) as approval_revenue'),
+                DB::raw('COUNT(*) as approvals')
+            )
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get()
+            ->keyBy('period');
+
+        // ── Merge both revenue streams ──
+        $allPeriods = $serviceTrends->keys()->merge($approvalTrends->keys())->unique()->sort();
+        
+        $trends = $allPeriods->map(function ($period) use ($serviceTrends, $approvalTrends) {
+            $serviceData = $serviceTrends->get($period);
+            $approvalData = $approvalTrends->get($period);
+
+            return [
+                'period' => $period,
+                'service_revenue' => (float) ($serviceData->service_revenue ?? 0),
+                'approval_revenue' => (float) ($approvalData->approval_revenue ?? 0),
+                'total_revenue' => (float) (($serviceData->service_revenue ?? 0) + ($approvalData->approval_revenue ?? 0)),
+                'bookings' => (int) ($serviceData->bookings ?? 0),
+                'approvals' => (int) ($approvalData->approvals ?? 0),
+            ];
+        })->values();
 
         return response()->json($trends);
     }
 
     /**
      * Owner sales dashboard
+     * Shows what renters actually paid (paid_amount)
+     * Supports date filtering
      */
     public function ownerDashboard(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
 
-        // Key Metrics
-        $totalEarnings = (float) RentalRequest::where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
-            ->sum('total_cost');
+        $request->validate([
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        // Base query for paid rentals
+        $paidQuery = RentalRequest::where('status', 'approved')
+            ->where('payment_status', 'paid')
+            ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId));
+
+        // Apply date filters if provided
+        if ($request->filled('start_date')) {
+            $paidQuery->whereDate('paid_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $paidQuery->whereDate('paid_at', '<=', $request->end_date);
+        }
+
+        // Key Metrics - Based on actual payments received (paid_amount)
+        $totalEarnings = (float) (clone $paidQuery)->sum('paid_amount');
 
         $totalBookings = RentalRequest::where('status', 'approved')
             ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
@@ -163,31 +253,50 @@ class SalesController extends Controller
 
         $avgBookingValue = $totalBookings > 0 ? $totalEarnings / $totalBookings : 0;
 
-        // Equipment Performance
-        $equipmentPerformance = Equipment::where('owner_id', $userId)
+        // Equipment Performance - Based on actual payments
+        $equipmentQuery = Equipment::where('owner_id', $userId)
             ->select('equipment.*')
             ->withCount(['rentalRequests' => function ($q) {
                 $q->where('status', 'approved');
             }])
-            ->withSum(['rentalRequests as total_revenue' => function ($q) {
-                $q->where('status', 'approved')->where('payment_status', 'verified');
-            }], 'total_cost')
-            ->orderByDesc('total_revenue')
-            ->get();
+            ->withSum(['rentalRequests as total_revenue' => function ($q) use ($request) {
+                $q->where('status', 'approved')->where('payment_status', 'paid');
+                if ($request->filled('start_date')) {
+                    $q->whereDate('paid_at', '>=', $request->start_date);
+                }
+                if ($request->filled('end_date')) {
+                    $q->whereDate('paid_at', '<=', $request->end_date);
+                }
+            }], 'paid_amount')
+            ->orderByDesc('total_revenue');
+
+        $equipmentPerformance = $equipmentQuery->get();
 
         // Best performing equipment
         $bestEquipment = $equipmentPerformance->first();
 
-        // Monthly earnings (last 6 months)
-        $monthlyEarnings = RentalRequest::select(
-                DB::raw('DATE_FORMAT(payment_verified_at, "%Y-%m") as month'),
-                DB::raw('SUM(total_cost) as revenue'),
+        // Monthly earnings - Based on actual payments with date filter
+        $monthlyQuery = RentalRequest::select(
+                DB::raw('DATE_FORMAT(paid_at, "%Y-%m") as month'),
+                DB::raw('SUM(paid_amount) as revenue'),
                 DB::raw('COUNT(*) as bookings')
             )
             ->where('status', 'approved')
-            ->where('payment_status', 'verified')
-            ->where('payment_verified_at', '>=', now()->subMonths(6))
-            ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId))
+            ->where('payment_status', 'paid')
+            ->whereHas('equipment', fn ($q) => $q->where('owner_id', $userId));
+
+        // Default to last 6 months if no date filter
+        if (!$request->filled('start_date')) {
+            $monthlyQuery->where('paid_at', '>=', now()->subMonths(6));
+        } else {
+            $monthlyQuery->whereDate('paid_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $monthlyQuery->whereDate('paid_at', '<=', $request->end_date);
+        }
+
+        $monthlyEarnings = $monthlyQuery
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -209,7 +318,7 @@ class SalesController extends Controller
     }
 
     /**
-     * Top performing equipment
+     * Top performing equipment by admin commission (service charges)
      */
     public function topEquipment(Request $request): JsonResponse
     {
@@ -223,16 +332,16 @@ class SalesController extends Controller
 
         $query = Equipment::select('equipment.*')
             ->withCount(['rentalRequests' => function ($q) {
-                $q->where('status', 'approved');
+                $q->where('status', 'approved')->where('payment_status', 'paid');
             }])
-            ->withSum(['rentalRequests as total_revenue' => function ($q) {
-                $q->where('status', 'approved')->where('payment_status', 'verified');
-            }], 'total_cost')
+            ->withSum(['rentalRequests as admin_commission' => function ($q) {
+                $q->where('status', 'approved')->where('payment_status', 'paid');
+            }], 'service_charge')
             ->with('owner:id,name')
             ->having('rental_requests_count', '>', 0);
 
         if ($sortBy === 'revenue') {
-            $query->orderByDesc('total_revenue');
+            $query->orderByDesc('admin_commission');
         } else {
             $query->orderByDesc('rental_requests_count');
         }

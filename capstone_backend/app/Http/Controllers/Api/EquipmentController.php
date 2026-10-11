@@ -101,6 +101,9 @@ class EquipmentController extends Controller
         // Set default province if not provided
         $data['province'] = $data['province'] ?? 'Oriental Mindoro';
 
+        // Set default pricing model if not provided
+        $data['pricing_model'] = $data['pricing_model'] ?? 'per_hectare';
+
         $data['owner_id'] = $request->user()->id;
         $data['status']   = 'pending';
         $data['transportation_fee'] = $data['transportation_fee'] ?? 0;
@@ -336,7 +339,9 @@ class EquipmentController extends Controller
             'name'               => ['required', 'string', 'max:255'],
             'category'           => ['required', 'in:tractor,harvester,planter,irrigation,cultivator,sprayer,trailer,other'],
             'description'        => ['nullable', 'string', 'max:2000'],
-            'price_per_hectare'  => ['required', 'numeric', 'min:0'],
+            'price_per_hectare'  => ['nullable', 'numeric', 'min:0'],
+            'price_per_equipment' => ['nullable', 'numeric', 'min:0'],
+            'pricing_model'      => ['required', 'in:per_hectare,per_equipment'],
             'transportation_fee' => ['nullable', 'numeric', 'min:0'],
             'location'           => ['nullable', 'string', 'max:255'],
             'municipality'       => ['required', 'string', 'max:255'],
@@ -346,6 +351,14 @@ class EquipmentController extends Controller
             'longitude'          => ['required', 'numeric', 'between:-180,180'],
             'image'              => ['nullable', 'image', 'max:5120'],
         ]);
+
+        // Validate that the appropriate price field is set based on pricing model
+        if ($data['pricing_model'] === 'per_hectare' && empty($data['price_per_hectare'])) {
+            return response()->json(['message' => 'Price per hectare is required for per_hectare pricing model.'], 422);
+        }
+        if ($data['pricing_model'] === 'per_equipment' && empty($data['price_per_equipment'])) {
+            return response()->json(['message' => 'Price per equipment is required for per_equipment pricing model.'], 422);
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('equipment', 'public');

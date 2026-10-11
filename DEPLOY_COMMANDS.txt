@@ -1,0 +1,43 @@
+ARCHIVE MANAGEMENT - DEPLOYMENT COMMANDS
+========================================
+
+BUILD: ✅ COMPLETE (19.68s)
+
+STEP 1: DEPLOY BACKEND
+-----------------------
+scp -P 65002 capstone_backend/app/Http/Controllers/Api/ArchiveController.php u798459799@151.106.124.153:~/domains/ferms.net/public_html/capstone_backend/app/Http/Controllers/Api/
+
+scp -P 65002 capstone_backend/routes/api.php u798459799@151.106.124.153:~/domains/ferms.net/public_html/capstone_backend/routes/
+
+STEP 2: DEPLOY FRONTEND
+------------------------
+scp -P 65002 -r frontend_capstone/dist/* u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+STEP 3: CLEAR CACHE
+-------------------
+Ctrl + Shift + Delete (or Ctrl + Shift + R)
+
+WHAT'S NEW:
+-----------
+✅ Admin: /admin/archive - Manage all archived items (owners, equipment, rentals, payments)
+✅ Owner: /owner/archive - Manage archived equipment & rental requests  
+✅ Renter: /renter/archive - Manage archived rentals & messages
+
+FEATURES:
+---------
+✅ Tabbed interface for different item types
+✅ Checkbox selection (single & multiple)
+✅ Select All checkbox
+✅ Bulk Restore button
+✅ Bulk Delete Permanently button
+✅ Search & sort functionality
+✅ Shows archived date
+✅ Warning for permanent deletion
+
+TEST:
+-----
+1. Archive some items from their original pages
+2. Go to Archive page (admin/owner/renter)
+3. Select items with checkboxes
+4. Click "Restore Selected" or "Delete Permanently"
+5. Verify items are restored or deleted

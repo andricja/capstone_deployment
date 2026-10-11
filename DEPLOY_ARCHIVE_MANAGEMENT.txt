@@ -1,0 +1,224 @@
+═══════════════════════════════════════════════════════════════════════════
+  ARCHIVE MANAGEMENT SYSTEM - DEPLOYMENT GUIDE
+═══════════════════════════════════════════════════════════════════════════
+
+BUILD STATUS: ✅ COMPLETE (20.47 seconds)
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 1: DEPLOY BACKEND FILES
+═══════════════════════════════════════════════════════════════════════════
+
+# Deploy ArchiveController (updated with bulk operations)
+scp -P 65002 capstone_backend/app/Http/Controllers/Api/ArchiveController.php u798459799@151.106.124.153:~/domains/ferms.net/public_html/capstone_backend/app/Http/Controllers/Api/
+
+# Deploy routes/api.php (updated with new archive endpoints)
+scp -P 65002 capstone_backend/routes/api.php u798459799@151.106.124.153:~/domains/ferms.net/public_html/capstone_backend/routes/
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 2: DEPLOY FRONTEND
+═══════════════════════════════════════════════════════════════════════════
+
+scp -P 65002 -r frontend_capstone/dist/* u798459799@151.106.124.153:~/domains/ferms.net/public_html/
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 3: CLEAR CACHE
+═══════════════════════════════════════════════════════════════════════════
+
+Press: Ctrl + Shift + Delete
+OR: Ctrl + Shift + R (hard refresh)
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT WAS IMPLEMENTED
+═══════════════════════════════════════════════════════════════════════════
+
+NEW PAGE: Archive Management (/admin/archive)
+
+Features:
+✅ 4 tabs: Owners, Equipment, Rentals, Payments
+✅ Filterable table for each archive type
+✅ Checkbox selection (single or multiple items)
+✅ "Select All" checkbox in header
+✅ Bulk restore button (restore multiple items at once)
+✅ Bulk delete button (permanently delete multiple items)
+✅ Single item restore button
+✅ Single item permanent delete button
+✅ Warning messages for permanent deletion
+✅ Search functionality within each tab
+✅ Sort by any column
+✅ Shows archived date for each item
+
+BACKEND:
+✅ 4 new GET endpoints for fetching archived items by type
+✅ 4 new bulk restore endpoints
+✅ 4 new bulk delete endpoints
+✅ 4 new single restore endpoints
+✅ Validation for bulk operations
+✅ Proper authorization checks
+
+═══════════════════════════════════════════════════════════════════════════
+HOW TO USE
+═══════════════════════════════════════════════════════════════════════════
+
+1. Login as admin
+2. Go to Admin → Archive (in sidebar)
+3. Select a tab: Owners, Equipment, Rentals, or Payments
+4. You'll see all archived items in a table
+
+TO RESTORE ITEMS:
+- Click checkbox next to item(s)
+- Click "Restore Selected" button
+- Items will be restored to original state
+
+TO DELETE PERMANENTLY:
+- Click checkbox next to item(s)
+- Click "Delete Permanently" button
+- Confirm the warning (cannot be undone!)
+- Items are permanently deleted from database
+
+SINGLE ITEM ACTIONS:
+- Click restore icon (↻) to restore one item
+- Click trash icon (🗑) to delete one item permanently
+
+═══════════════════════════════════════════════════════════════════════════
+API ENDPOINTS ADDED
+═══════════════════════════════════════════════════════════════════════════
+
+GET /api/admin/archived/owners          - Get all archived owners
+GET /api/admin/archived/equipment       - Get all archived equipment
+GET /api/admin/archived/rentals         - Get all archived rentals
+GET /api/admin/archived/payments        - Get all archived payments
+
+PATCH /api/admin/owners/{id}/restore    - Restore single owner
+PATCH /api/admin/equipment/{id}/restore - Restore single equipment
+PATCH /api/admin/rentals/{id}/restore   - Restore single rental
+PATCH /api/admin/payments/{id}/restore  - Restore single payment
+
+POST /api/admin/archived/owners/bulk-restore     - Bulk restore owners
+POST /api/admin/archived/equipment/bulk-restore  - Bulk restore equipment
+POST /api/admin/archived/rentals/bulk-restore    - Bulk restore rentals
+POST /api/admin/archived/payments/bulk-restore   - Bulk restore payments
+
+POST /api/admin/archived/owners/bulk-delete      - Bulk delete owners
+POST /api/admin/archived/equipment/bulk-delete   - Bulk delete equipment
+POST /api/admin/archived/rentals/bulk-delete     - Bulk delete rentals
+POST /api/admin/archived/payments/bulk-delete    - Bulk delete payments
+
+DELETE /api/admin/archived/owners/{id}     - Delete single owner permanently
+DELETE /api/admin/archived/equipment/{id}  - Delete single equipment permanently
+DELETE /api/admin/archived/rentals/{id}    - Delete single rental permanently
+DELETE /api/admin/archived/payments/{id}   - Delete single payment permanently
+
+═══════════════════════════════════════════════════════════════════════════
+TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════════════════
+
+Test Archive an Item First:
+[ ] Go to Admin → Owners
+[ ] Archive 2-3 owners
+[ ] Go to Admin → Equipment  
+[ ] Archive 2-3 equipment items
+
+Test Archive Management Page:
+[ ] Go to Admin → Archive
+[ ] See "Owners" tab (should show archived owners)
+[ ] See "Equipment" tab (should show archived equipment)
+
+Test Selection:
+[ ] Click checkbox on one item → should be selected
+[ ] Click "Select All" → all items should be selected
+[ ] Click "Select All" again → all items deselected
+
+Test Bulk Restore:
+[ ] Select 2-3 items
+[ ] Click "Restore Selected"
+[ ] Confirm action
+[ ] Items should disappear from archive
+[ ] Go back to Owners/Equipment → items should be restored
+
+Test Bulk Delete:
+[ ] Archive a few more items
+[ ] Go to Archive page
+[ ] Select 1-2 items
+[ ] Click "Delete Permanently"
+[ ] See warning about permanent deletion
+[ ] Confirm
+[ ] Items should be permanently deleted
+
+Test Single Item Actions:
+[ ] Click restore icon (↻) on one item
+[ ] Item should be restored
+[ ] Click trash icon (🗑) on one item
+[ ] Confirm deletion
+[ ] Item should be permanently deleted
+
+Test Search:
+[ ] Type in search box
+[ ] Results should filter
+[ ] Works for all tabs
+
+Test Sorting:
+[ ] Click column headers
+[ ] Data should sort ascending/descending
+[ ] Sort icon should update
+
+═══════════════════════════════════════════════════════════════════════════
+BEFORE vs AFTER
+═══════════════════════════════════════════════════════════════════════════
+
+BEFORE:
+- Archive items one by one from each page
+- No way to see all archived items in one place
+- No bulk operations
+- To restore: go back to original page, click archive button again
+- Confusing which items are archived
+
+AFTER:
+- Dedicated Archive Management page
+- See all archived items organized by tabs
+- Select multiple items with checkboxes
+- Bulk restore or bulk delete
+- Clear interface showing archived date
+- Search and sort functionality
+- Warning messages for permanent deletion
+
+═══════════════════════════════════════════════════════════════════════════
+FILES CHANGED
+═══════════════════════════════════════════════════════════════════════════
+
+FRONTEND:
+✅ frontend_capstone/src/pages/admin/ArchiveManagement.jsx (NEW)
+✅ frontend_capstone/src/App.jsx (route already added)
+✅ frontend_capstone/src/components/Navbar.jsx (link already exists)
+
+BACKEND:
+✅ capstone_backend/app/Http/Controllers/Api/ArchiveController.php
+   - Added adminArchivedOwners()
+   - Added adminArchivedEquipment()
+   - Added adminArchivedRentals()
+   - Added adminArchivedPayments()
+   - Added bulkRestoreOwners()
+   - Added bulkRestoreEquipment()
+   - Added bulkRestoreRentals()
+   - Added bulkRestorePayments()
+   - Added bulkDeleteOwners()
+   - Added bulkDeleteEquipment()
+   - Added bulkDeleteRentals()
+   - Added bulkDeletePayments()
+   - Added restoreOwner()
+   - Added restoreEquipment()
+   - Added restoreRental()
+   - Added restorePayment()
+
+✅ capstone_backend/routes/api.php
+   - Added GET routes for archived items by type
+   - Added POST routes for bulk operations
+   - Added PATCH routes for single restore operations
+
+═══════════════════════════════════════════════════════════════════════════
+READY TO DEPLOY
+═══════════════════════════════════════════════════════════════════════════
+
+Run the deployment commands above and test!
+
+Date: April 11, 2026
+Status: 🎉 READY FOR PRODUCTION

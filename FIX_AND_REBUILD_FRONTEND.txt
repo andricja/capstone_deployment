@@ -1,0 +1,65 @@
+===============================================================================
+  FIX APPLIED - REBUILD FRONTEND
+===============================================================================
+
+Error Fixed: activeTab is not defined
+Status: ✅ Code corrected, ready to rebuild
+
+===============================================================================
+COMMANDS TO RUN (Copy/Paste)
+===============================================================================
+
+# Navigate to frontend
+cd frontend_capstone
+
+# Clear Vite cache (important!)
+rm -rf node_modules/.vite
+
+# Or on Windows PowerShell:
+Remove-Item -Recurse -Force node_modules/.vite
+
+# Rebuild
+npm run build
+
+# Or run dev server to test locally:
+npm run dev
+
+===============================================================================
+WHAT WAS FIXED
+===============================================================================
+
+Issue:
+  - Backup tab code was outside the component function
+  - activeTab variable was not in scope
+  - Caused: "Uncaught ReferenceError: activeTab is not defined"
+
+Fix:
+  - Moved backup tab code inside AccountSettings component
+  - Placed after email settings tab, before component closing
+  - Removed duplicate code
+
+Result:
+  ✅ activeTab now in scope
+  ✅ Backup tab correctly integrated
+  ✅ No more reference errors
+
+===============================================================================
+TEST AFTER REBUILD
+===============================================================================
+
+1. Clear browser cache (Ctrl+Shift+R)
+2. Navigate to: Admin Settings → Database Backup
+3. Should see backup tab without errors
+4. Try clicking "Export Database Backup"
+
+===============================================================================
+IF STILL SEEING OLD ERROR
+===============================================================================
+
+Browser might be caching old build:
+  - Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
+  - Clear browser cache completely
+  - Open in incognito/private window
+  - Check that new build files were uploaded to server
+
+===============================================================================

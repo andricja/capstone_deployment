@@ -56,6 +56,7 @@ export function useNotifications() {
       
       if (fcmToken) {
         setToken(fcmToken);
+        localStorage.setItem('fcmToken', fcmToken); // Store in localStorage
         setPermission('granted');
         
         // Register with backend
@@ -165,6 +166,7 @@ export function useNotifications() {
         const fcmToken = await requestNotificationPermission();
         if (fcmToken) {
           setToken(fcmToken);
+          localStorage.setItem('fcmToken', fcmToken); // Store in localStorage
           await registerToken(fcmToken);
         }
       }

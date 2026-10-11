@@ -1,15 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
-use Illuminate\Support\Facades\Storage;
 
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+// Disabled Inertia routes - Using separate React frontend
+// All routes are in routes/api.php
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+Route::get('/', function () {
+    return response()->json([
+        'name' => 'FERMs API',
+        'version' => '1.0.0',
+        'status' => 'running',
+        'message' => 'Backend API is running. Frontend is at http://localhost:5173',
+    ]);
 });
 
 require __DIR__.'/settings.php';

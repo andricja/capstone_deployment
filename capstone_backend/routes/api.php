@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DatabaseBackupController;
 use App\Http\Controllers\Api\EquipmentController;
 use App\Http\Controllers\Api\GcashSettingController;
 use App\Http\Controllers\Api\GoogleAuthController;
@@ -23,8 +24,17 @@ use Illuminate\Support\Facades\Route;
 /*  PUBLIC (no auth)                                                       */
 /* ====================================================================== */
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+// Public registration with rate limiting (3 per hour)
+Route::middleware(['throttle:register'])->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+});
+
+// Public authentication with rate limiting (5 attempts per minute)
+Route::middleware(['throttle:auth'])->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+// Email verification without strict rate limiting (user might need to resend)
 Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-verification', [AuthController::class, 'resendVerificationCode']);
 
@@ -70,7 +80,7 @@ Route::post('/routing/get-route', [AddressController::class, 'getRoute']);
 /*  AUTHENTICATED (any role)                                               */
 /* ====================================================================== */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -112,10 +122,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/rental-requests',  [RentalRequestController::class, 'myRequests']);
         Route::post('/rental-requests', [RentalRequestController::class, 'store']);
         Route::post('/rental-requests/calculate-fee', [RentalRequestController::class, 'calculateTransportationFee']);
+        Route::post('/rental-requests/{rentalRequest}/payment', [RentalRequestController::class, 'submitPayment']);
 
         // Message / inquiries
         Route::get('/messages',  [MessageRequestController::class, 'myMessages']);
         Route::post('/messages', [MessageRequestController::class, 'store']);
+        Route::post('/messages/{messageRequest}/reply', [MessageRequestController::class, 'sendReply']);
+        Route::get('/messages/{messageRequest}/replies', [MessageRequestController::class, 'getReplies']);
 
         // Renter Payments
         Route::get('/payments',                    [PaymentController::class, 'renterPayments']);
@@ -128,9 +141,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/archived/rentals',             [ArchiveController::class, 'renterArchivedRentals']);
         Route::patch('/archived/rentals/{id}',      [ArchiveController::class, 'renterToggleRental']);
         Route::delete('/archived/rentals/{id}',     [ArchiveController::class, 'renterDeleteRental']);
+        Route::post('/archived/rentals/bulk-restore', [ArchiveController::class, 'renterBulkRestoreRentals']);
+        Route::post('/archived/rentals/bulk-delete',  [ArchiveController::class, 'renterBulkDeleteRentals']);
+        
         Route::get('/archived/messages',            [ArchiveController::class, 'renterArchivedMessages']);
         Route::patch('/archived/messages/{id}',     [ArchiveController::class, 'renterToggleMessage']);
         Route::delete('/archived/messages/{id}',    [ArchiveController::class, 'renterDeleteMessage']);
+        Route::post('/archived/messages/bulk-restore', [ArchiveController::class, 'renterBulkRestoreMessages']);
+        Route::post('/archived/messages/bulk-delete',  [ArchiveController::class, 'renterBulkDeleteMessages']);
     });
 
     /* ------------------------------------------------------------------ */
@@ -160,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Owner Earnings/Payments
         Route::get('/payments',       [PaymentController::class, 'ownerPayments']);
         Route::get('/payments/stats', [PaymentController::class, 'ownerStats']);
+        Route::patch('/payments/{id}', [PaymentController::class, 'ownerUpdatePayment']);
 
         // Calendar
         Route::get('/calendar/events', [CalendarController::class, 'ownerEvents']);
@@ -172,9 +191,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/archived/equipment',            [ArchiveController::class, 'ownerArchivedEquipment']);
         Route::patch('/archived/equipment/{id}',     [ArchiveController::class, 'ownerToggleEquipment']);
         Route::delete('/archived/equipment/{id}',    [ArchiveController::class, 'ownerDeleteEquipment']);
+        Route::post('/archived/equipment/bulk-restore', [ArchiveController::class, 'ownerBulkRestoreEquipment']);
+        Route::post('/archived/equipment/bulk-delete',  [ArchiveController::class, 'ownerBulkDeleteEquipment']);
+        
         Route::get('/archived/rentals',              [ArchiveController::class, 'ownerArchivedRentals']);
         Route::patch('/archived/rentals/{id}',       [ArchiveController::class, 'ownerToggleRental']);
         Route::delete('/archived/rentals/{id}',      [ArchiveController::class, 'ownerDeleteRental']);
+        Route::post('/archived/rentals/bulk-restore', [ArchiveController::class, 'ownerBulkRestoreRentals']);
+        Route::post('/archived/rentals/bulk-delete',  [ArchiveController::class, 'ownerBulkDeleteRentals']);
     });
 
     /* ------------------------------------------------------------------ */
@@ -195,6 +219,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/messages',                              [MessageRequestController::class, 'index']);
         Route::patch('/messages/{messageRequest}/status',    [MessageRequestController::class, 'updateStatus']);
         Route::delete('/messages/{messageRequest}',          [MessageRequestController::class, 'destroy']);
+        Route::post('/messages/{messageRequest}/reply',      [MessageRequestController::class, 'sendReply']);
+        Route::get('/messages/{messageRequest}/replies',     [MessageRequestController::class, 'getReplies']);
 
         // Owners management
         Route::get('/owners', [AuthController::class, 'owners']);
@@ -236,8 +262,19 @@ Route::middleware('auth:sanctum')->group(function () {
         // Calendar
         Route::get('/calendar/events',         [CalendarController::class, 'adminEvents']);
 
-        // Archive
+        // Archive - Get archived items by type
         Route::get('/archived/all',                   [ArchiveController::class, 'adminArchivedAll']);
+        Route::get('/archived/owners',                [ArchiveController::class, 'adminArchivedOwners']);
+        Route::get('/archived/equipment',             [ArchiveController::class, 'adminArchivedEquipment']);
+        Route::get('/archived/rentals',               [ArchiveController::class, 'adminArchivedRentals']);
+        Route::get('/archived/payments',              [ArchiveController::class, 'adminArchivedPayments']);
+        
+        // Archive - Single item operations
+        Route::patch('/owners/{id}/restore',          [ArchiveController::class, 'restoreOwner']);
+        Route::patch('/equipment/{id}/restore',       [ArchiveController::class, 'restoreEquipment']);
+        Route::patch('/rentals/{id}/restore',         [ArchiveController::class, 'restoreRental']);
+        Route::patch('/payments/{id}/restore',        [ArchiveController::class, 'restorePayment']);
+        
         Route::patch('/archived/owners/{id}',         [ArchiveController::class, 'adminToggleOwner']);
         Route::delete('/archived/owners/{id}',        [ArchiveController::class, 'adminDeleteOwner']);
         Route::patch('/archived/equipment/{id}',      [ArchiveController::class, 'adminToggleEquipment']);
@@ -246,6 +283,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/archived/rentals/{id}',       [ArchiveController::class, 'adminDeleteRental']);
         Route::patch('/archived/messages/{id}',       [ArchiveController::class, 'adminToggleMessage']);
         Route::delete('/archived/messages/{id}',      [ArchiveController::class, 'adminDeleteMessage']);
+        
+        // Archive - Bulk operations
+        Route::post('/archived/owners/bulk-restore',      [ArchiveController::class, 'bulkRestoreOwners']);
+        Route::post('/archived/equipment/bulk-restore',   [ArchiveController::class, 'bulkRestoreEquipment']);
+        Route::post('/archived/rentals/bulk-restore',     [ArchiveController::class, 'bulkRestoreRentals']);
+        Route::post('/archived/payments/bulk-restore',    [ArchiveController::class, 'bulkRestorePayments']);
+        
+        Route::post('/archived/owners/bulk-delete',       [ArchiveController::class, 'bulkDeleteOwners']);
+        Route::post('/archived/equipment/bulk-delete',    [ArchiveController::class, 'bulkDeleteEquipment']);
+        Route::post('/archived/rentals/bulk-delete',      [ArchiveController::class, 'bulkDeleteRentals']);
+        Route::post('/archived/payments/bulk-delete',     [ArchiveController::class, 'bulkDeletePayments']);
 
         // Ad management
         Route::get('/ads',                    [AdController::class, 'index']);
@@ -258,5 +306,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/sales/dashboard',        [SalesController::class, 'adminDashboard']);
         Route::get('/sales/revenue-trends',   [SalesController::class, 'revenueOverTime']);
         Route::get('/sales/top-equipment',    [SalesController::class, 'topEquipment']);
+
+        // Database Backup/Export
+        Route::get('/backup/export',          [DatabaseBackupController::class, 'export']);
+        Route::post('/backup/import',         [DatabaseBackupController::class, 'import']);
+        Route::get('/backup/stats',           [DatabaseBackupController::class, 'stats']);
     });
 });

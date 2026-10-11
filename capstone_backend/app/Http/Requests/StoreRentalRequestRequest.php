@@ -25,15 +25,15 @@ class StoreRentalRequestRequest extends FormRequest
             'province'        => ['nullable', 'string', 'max:255'],
             'latitude'        => ['required', 'numeric', 'between:-90,90'],
             'longitude'       => ['required', 'numeric', 'between:-180,180'],
-            'payment_method'  => ['required', 'in:downpayment,fullpayment'],
-            'payment_proof'   => ['required', 'image', 'max:5120'],
+            'payment_method'  => ['nullable', 'in:downpayment,fullpayment'],
+            'paid_amount'     => ['nullable', 'numeric', 'min:0'],
+            'payment_proof'   => ['nullable', 'image', 'max:5120'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'payment_proof.required' => 'Payment proof via GCash is required for all rental requests.',
             'payment_proof.image'    => 'Payment proof must be an image file.',
             'payment_proof.max'      => 'Payment proof must not exceed 5 MB.',
         ];
