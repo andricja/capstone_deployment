@@ -7,6 +7,8 @@ import RentalReceiptModal from '../../components/RentalReceiptModal';
 import PaymentModal from '../../components/PaymentModal';
 import { Eye, LayoutGrid, Table, Banknote, Archive, CreditCard } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
 
 export default function MyRentals() {
@@ -17,6 +19,7 @@ export default function MyRentals() {
   const [viewMode, setViewMode] = useState('card');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'forwarded' | 'approved' | 'rejected' | 'pending_payment'
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
 
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -47,7 +50,15 @@ export default function MyRentals() {
   useEffect(() => { fetchAll(); }, []);
 
   const handleArchive = async (id) => {
-    if (!confirm('Archive this rental request?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Rental',
+      message: 'Archive this rental request?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/renter/archived/rentals/${id}`);
       toast.success('Rental archived.');
@@ -386,6 +397,18 @@ export default function MyRentals() {
         </div>,
         document.body
       )}
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

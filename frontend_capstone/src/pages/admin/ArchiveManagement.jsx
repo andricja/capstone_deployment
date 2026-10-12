@@ -5,11 +5,14 @@ import DataTable from '../../components/DataTable';
 import { TableSkeleton } from '../../components/Skeleton';
 import { Archive, RefreshCw, Trash2, Users, Tractor, ClipboardList, Banknote, CheckSquare, Square, AlertTriangle, User, FileText, Server, Database, Settings } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
 
 export default function ArchiveManagement() {
   const toast = useToast();
   const navigate = useNavigate();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   const [activeTab, setActiveTab] = useState('owners'); // 'owners' | 'equipment' | 'rentals' | 'payments'
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +77,14 @@ export default function ArchiveManagement() {
       return;
     }
 
-    if (!confirm(`Restore ${selectedIds.length} selected item(s)?`)) return;
+    const confirmed = await confirm({
+      title: 'Restore Items',
+      message: `Restore ${selectedIds.length} selected item(s)?`,
+      confirmText: 'Restore',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
 
     setActionLoading(true);
     try {
@@ -111,7 +121,15 @@ export default function ArchiveManagement() {
       return;
     }
 
-    if (!confirm(`⚠️ PERMANENTLY DELETE ${selectedIds.length} selected item(s)? This action CANNOT be undone!`)) return;
+    const confirmed = await confirm({
+      title: 'Permanently Delete Items',
+      message: `⚠️ PERMANENTLY DELETE ${selectedIds.length} selected item(s)? This action CANNOT be undone!`,
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
 
     setActionLoading(true);
     try {
@@ -144,7 +162,14 @@ export default function ArchiveManagement() {
   // Single restore
   const handleRestore = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Restore this item?')) return;
+    const confirmed = await confirm({
+      title: 'Restore Item',
+      message: 'Restore this item?',
+      confirmText: 'Restore',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
 
     setActionLoading(true);
     try {
@@ -177,7 +202,15 @@ export default function ArchiveManagement() {
   // Single delete permanently
   const handleDelete = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('⚠️ PERMANENTLY DELETE this item? This action CANNOT be undone!')) return;
+    const confirmed = await confirm({
+      title: 'Permanently Delete Item',
+      message: '⚠️ PERMANENTLY DELETE this item? This action CANNOT be undone!',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
 
     setActionLoading(true);
     try {
@@ -611,6 +644,18 @@ export default function ArchiveManagement() {
         />
       )}
       </div>
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

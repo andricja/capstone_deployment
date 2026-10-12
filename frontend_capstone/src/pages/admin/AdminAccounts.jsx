@@ -6,6 +6,8 @@ import { TableSkeleton } from '../../components/Skeleton';
 import StatusBadge from '../../components/StatusBadge';
 import { UserCheck, UserX, Users, Clock, ShieldCheck, ShieldX, X, Mail, Trash2 } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminAccounts() {
   const [data, setData] = useState([]);
@@ -13,6 +15,7 @@ export default function AdminAccounts() {
   const [filter, setFilter] = useState('email_verified');
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   const [selected, setSelected] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -72,7 +75,16 @@ export default function AdminAccounts() {
 
   const handleDelete = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('Are you sure you want to permanently delete this account? This action cannot be undone.')) return;
+    const confirmed = await confirm({
+      title: 'Delete Account',
+      message: 'Are you sure you want to permanently delete this account? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+    
     setActionLoading(true);
     try {
       const res = await api.delete(`/admin/accounts/${id}`);
@@ -383,6 +395,18 @@ export default function AdminAccounts() {
         </div>,
         document.body
       )}
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }

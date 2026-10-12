@@ -6,6 +6,8 @@ import { TableSkeleton } from '../../components/Skeleton';
 import Pagination from '../../components/Pagination';
 import { Archive, MessageSquare, Send, X } from 'lucide-react';
 import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../../components/ConfirmModal';
 import Tooltip from '../../components/Tooltip';
 
 export default function RenterMessages() {
@@ -21,6 +23,7 @@ export default function RenterMessages() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
   const toast = useToast();
+  const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
 
   const fetchMessages = (p = 1) => {
     setLoading(true);
@@ -48,7 +51,15 @@ export default function RenterMessages() {
   };
 
   const handleArchive = async (id) => {
-    if (!confirm('Archive this message?')) return;
+    const confirmed = await confirm({
+      title: 'Archive Message',
+      message: 'Archive this message?',
+      confirmText: 'Archive',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) return;
+    
     try {
       await api.patch(`/renter/archived/messages/${id}`);
       toast.success('Message archived.');
@@ -335,6 +346,18 @@ export default function RenterMessages() {
         </div>,
         document.body
       )}
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={config.title}
+        message={config.message}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        danger={config.danger}
+      />
     </div>
   );
 }
