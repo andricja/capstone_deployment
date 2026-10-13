@@ -496,64 +496,6 @@ export default function ArchiveManagement() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Settings className="w-7 h-7 text-green-600 dark:text-green-400" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Manage system settings and archived items
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Profile/Accounts/Audit/Email/Backup/Archive Tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-6 overflow-x-auto">
-        <button
-          onClick={() => navigate('/admin/settings')}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap"
-        >
-          <User className="w-4 h-4" />
-          Profile
-        </button>
-        <button
-          onClick={() => navigate('/admin/settings')}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap"
-        >
-          <Users className="w-4 h-4" />
-          Accounts
-        </button>
-        <button
-          onClick={() => navigate('/admin/settings')}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap"
-        >
-          <FileText className="w-4 h-4" />
-          Audit Trail
-        </button>
-        <button
-          onClick={() => navigate('/admin/settings')}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap"
-        >
-          <Server className="w-4 h-4" />
-          Email
-        </button>
-        <button
-          onClick={() => navigate('/admin/settings')}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap"
-        >
-          <Database className="w-4 h-4" />
-          Backup
-        </button>
-        <button
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm whitespace-nowrap"
-        >
-          <Archive className="w-4 h-4" />
-          Archive
-        </button>
-      </div>
-
       {/* Archive Page Content */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors p-6">
         {/* Tabs */}

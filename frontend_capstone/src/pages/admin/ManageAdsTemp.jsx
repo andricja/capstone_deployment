@@ -170,62 +170,100 @@ function ManageAds() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Ads</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Manage Ads</h1>
         <button 
           onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white rounded-lg font-medium transition-all shadow-sm"
+          className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
-          Create Ad
+          <span>Create Ad</span>
         </button>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {ads.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center text-gray-500 dark:text-gray-400">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400 text-sm sm:text-base">
             No ads available. Click "Create Ad" to get started.
           </div>
         ) : (
           ads.map((ad) => (
-            <div key={ad.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex gap-4">
+            <div key={ad.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                {/* Image section */}
                 {ad.image && (
-                  <div className="flex-shrink-0 w-32 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+                  <div className="flex-shrink-0 w-full sm:w-40 md:w-48 h-40 sm:h-28 md:h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                     <img src={`/storage/${ad.image}`} alt={ad.title} className="w-full h-full object-cover" />
                   </div>
                 )}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{ad.title}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ad.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
-                          {ad.status}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                          Order: {ad.display_order}
-                        </span>
-                      </div>
-                      {ad.description && <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{ad.description}</p>}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        {ad.link_url && (
-                          <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
-                            <ExternalLink className="w-3 h-3" />Link
-                          </a>
-                        )}
-                        {ad.start_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Start: {formatDate(ad.start_date)}</span>}
-                        {ad.end_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />End: {formatDate(ad.end_date)}</span>}
-                      </div>
+                
+                {/* Content section */}
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  {/* Title and badges */}
+                  <div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words mb-1.5">{ad.title}</h3>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${ad.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                        {ad.status}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 whitespace-nowrap">
+                        Order: {ad.display_order}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleToggleStatus(ad)} className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title={ad.status === 'active' ? 'Deactivate' : 'Activate'}>
-                        {ad.status === 'active' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => handleDelete(ad.id)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  </div>
+                  
+                  {/* Description */}
+                  {ad.description && (
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{ad.description}</p>
+                  )}
+                  
+                  {/* Links and dates */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-gray-500 dark:text-gray-400">
+                    {ad.link_url && (
+                      <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                        <ExternalLink className="w-3 h-3" />Link
+                      </a>
+                    )}
+                    {ad.start_date && (
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Calendar className="w-3 h-3" />Start: {formatDate(ad.start_date)}
+                      </span>
+                    )}
+                    {ad.end_date && (
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Calendar className="w-3 h-3" />End: {formatDate(ad.end_date)}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="flex items-center justify-end gap-1.5 sm:gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <button 
+                      onClick={() => handleToggleStatus(ad)} 
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title={ad.status === 'active' ? 'Deactivate' : 'Activate'}
+                    >
+                      {ad.status === 'active' ? <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                      <span className="hidden md:inline">{ad.status === 'active' ? 'Active' : 'Inactive'}</span>
+                    </button>
+                    <button 
+                      onClick={() => openEditModal(ad)} 
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span className="hidden md:inline">Edit</span>
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(ad.id)} 
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden md:inline">Delete</span>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -92,40 +92,40 @@ export default function RenterCalendar() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <CalendarDays className="w-7 h-7 text-green-600 dark:text-green-400" />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Rental Calendar</h1>
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <CalendarDays className="w-6 h-6 sm:w-7 sm:h-7 text-green-600 dark:text-green-400" />
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">My Rental Calendar</h1>
       </div>
 
       {/* Legend */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-6">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Status Legend:</p>
-        <div className="flex items-center gap-6 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500"></div>
+      <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-4 sm:mb-6">
+        <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Status Legend:</p>
+        <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-yellow-500"></div>
             <span className="text-xs text-gray-600 dark:text-gray-400">Pending</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-blue-500"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-blue-500"></div>
             <span className="text-xs text-gray-600 dark:text-gray-400">Approved</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-green-500"></div>
             <span className="text-xs text-gray-600 dark:text-gray-400">Active</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-gray-500"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-gray-500"></div>
             <span className="text-xs text-gray-600 dark:text-gray-400">Completed</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-500"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-red-500"></div>
             <span className="text-xs text-gray-600 dark:text-gray-400">Rejected</span>
           </div>
         </div>
       </div>
 
       {/* Calendar */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
         {loading ? (
           <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
             Loading calendar...

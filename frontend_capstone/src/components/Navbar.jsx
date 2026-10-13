@@ -97,39 +97,39 @@ export default function Sidebar() {
         </div>
 
         {/* Center: breadcrumb - show page title on mobile, full breadcrumb on desktop */}
-        <div className="flex-1 flex items-center px-4">
-          <nav className="flex items-center gap-1.5 text-sm">
-            <span className="hidden md:inline text-gray-500 dark:text-gray-400">{roleLabel}</span>
-            <ChevronRight className="hidden md:inline w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="text-gray-900 dark:text-white font-semibold truncate">{pageTitle}</span>
+        <div className="flex-1 flex items-center px-2 sm:px-4 min-w-0 overflow-hidden">
+          <nav className="flex items-center gap-1.5 text-sm min-w-0 max-w-full overflow-hidden">
+            <span className="hidden md:inline text-gray-500 dark:text-gray-400 flex-shrink-0">{roleLabel}</span>
+            <ChevronRight className="hidden md:inline w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <span className="text-gray-900 dark:text-white font-semibold truncate text-xs sm:text-sm md:text-base">{pageTitle}</span>
           </nav>
         </div>
 
         {/* Right side: notification bell + dark toggle + user info */}
-        <div className="flex items-center gap-3 px-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-4 flex-shrink-0">
           {/* Notification Bell */}
           <NotificationBell />
 
           {/* Dark mode toggle */}
           <button
             onClick={toggle}
-            className="p-1.5 rounded-lg hover:bg-white/20 md:hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1 sm:p-1.5 rounded-lg hover:bg-white/20 md:hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
             title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {dark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-white/80 md:text-gray-500" />}
+            {dark ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-white/80 md:text-gray-500" />}
           </button>
 
           {user && (
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                className="flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition-opacity"
               >
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">{user.name}</p>
+                <div className="text-right hidden lg:block min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight truncate max-w-[120px]">{user.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
                 </div>
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 dark:from-gray-600 dark:to-gray-700 text-white flex items-center justify-center text-sm font-bold shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 dark:from-gray-600 dark:to-gray-700 text-white flex items-center justify-center text-xs sm:text-sm font-bold shadow-sm cursor-pointer hover:shadow-md transition-shadow flex-shrink-0">
                   {user.name?.charAt(0).toUpperCase()}
                 </div>
               </button>

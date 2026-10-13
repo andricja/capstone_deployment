@@ -1,6 +1,6 @@
 @tailwind base;
-@tailwind components;
 @tailwind utilities;
+@tailwind components;
 
 @layer base {
   /* Smooth color transitions for dark mode */
@@ -46,5 +46,21 @@
   
   .dark *::-webkit-scrollbar-thumb:hover {
     background-color: rgb(107 114 128); /* gray-500 */
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Prevent horizontal page scroll */
+  .no-scrollbar-x {
+    overflow-x: hidden;
   }
 }

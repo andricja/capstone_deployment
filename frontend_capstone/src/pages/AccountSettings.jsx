@@ -3,17 +3,20 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
-import { Settings, User, Lock, Eye, EyeOff, Save, Mail, Send, Server, Wallet, Archive, RotateCcw, Trash2, Users, FileText, Clock, ShieldCheck, ShieldX, X, UserCheck, UserX, Activity, Search, Filter, Database, Download, HardDrive, Upload } from 'lucide-react';
+import { Settings, User, Lock, Eye, EyeOff, Save, Mail, Send, Server, Wallet, Archive, RotateCcw, Trash2, Users, FileText, Clock, ShieldCheck, ShieldX, X, UserCheck, UserX, Activity, Search, Filter, Database, Download, HardDrive, Upload, Tractor, ClipboardList, Banknote, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { FormSkeleton, TableSkeleton } from '../components/Skeleton';
 import api from '../lib/api';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
+import Tooltip from '../components/Tooltip';
+import { useConfirm } from '../hooks/useConfirm';
+import ConfirmModal from '../components/ConfirmModal';
 
 const TABS = {
   profile: { label: 'Profile', icon: User },
   gcash: { label: 'GCash Settings', icon: Wallet, ownerOnly: true },
-  archive: { label: 'Archive', icon: Archive },
+  archive: { label: 'Archive', icon: Archive }, // Available for all roles
   accounts: { label: 'Accounts', icon: Users, adminOnly: true },
   auditTrail: { label: 'Audit Trail', icon: FileText, adminOnly: true },
   email: { label: 'Email Settings', icon: Server, adminOnly: true },
@@ -27,13 +30,7 @@ export default function AccountSettings() {
   const [activeTab, setActiveTab] = useState('profile');
 
   const handleTabChange = (tabKey) => {
-    if (tabKey === 'archive') {
-      // Navigate to archive page based on user role
-      const archivePath = `/${user?.role}/archive`;
-      navigate(archivePath);
-    } else {
-      setActiveTab(tabKey);
-    }
+    setActiveTab(tabKey);
   };
 
   const visibleTabs = Object.entries(TABS).filter(
@@ -108,6 +105,15 @@ export default function AccountSettings() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState(null);
+
+  // Archive Management (all roles)
+  const { confirm: confirmArchive, isOpen: isArchiveConfirmOpen, config: archiveConfig, handleConfirm: handleArchiveConfirm, handleClose: handleArchiveClose } = useConfirm();
+  const [archiveTab, setArchiveTab] = useState(user?.role === 'owner' ? 'equipment' : user?.role === 'renter' ? 'rentals' : 'owners');
+  const [archiveData, setArchiveData] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [selectedArchiveIds, setSelectedArchiveIds] = useState([]);
+  const [archiveActionLoading, setArchiveActionLoading] = useState(false);
+
   // Load GCash settings for owner
   useEffect(() => {
     if (user?.role !== 'owner') {
@@ -315,6 +321,71 @@ export default function AccountSettings() {
     }
   }, [activeTab, user?.role]);
 
+  // ======================== ARCHIVE MANAGEMENT ========================
+  const fetchArchived = (tab = archiveTab) => {
+    setArchiveLoading(true);
+    setSelectedArchiveIds([]);
+    let endpoint = '';
+    
+    // Role-based endpoints
+    if (user?.role === 'admin') {
+      switch (tab) {
+        case 'owners':
+          endpoint = '/admin/archived/owners';
+          break;
+        case 'equipment':
+          endpoint = '/admin/archived/equipment';
+          break;
+        case 'rentals':
+          endpoint = '/admin/archived/rentals';
+          break;
+        case 'payments':
+          endpoint = '/admin/archived/payments';
+          break;
+        default:
+          endpoint = '/admin/archived/owners';
+      }
+    } else if (user?.role === 'owner') {
+      // Owner can see their archived equipment and rentals
+      switch (tab) {
+        case 'equipment':
+          endpoint = '/owner/archived/equipment';
+          break;
+        case 'rentals':
+          endpoint = '/owner/archived/rentals';
+          break;
+        default:
+          endpoint = '/owner/archived/equipment';
+      }
+    } else if (user?.role === 'renter') {
+      // Renter can see their archived rentals
+      endpoint = '/renter/archived/rentals';
+    }
+
+    api.get(endpoint, { params: { all: 1 } })
+      .then((r) => setArchiveData(Array.isArray(r.data) ? r.data : r.data?.data ?? []))
+      .catch((err) => {
+        console.error('Failed to fetch archived items:', err);
+        toast.error('Failed to load archived items.');
+        setArchiveData([]);
+      })
+      .finally(() => setArchiveLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeTab === 'archive') {
+      // Set default tab based on role
+      if (user?.role === 'admin' && archiveTab === 'owners') {
+        setArchiveTab('owners');
+      } else if (user?.role === 'owner' && (archiveTab === 'owners' || archiveTab === 'payments')) {
+        setArchiveTab('equipment');
+      } else if (user?.role === 'renter') {
+        setArchiveTab('rentals');
+      }
+      fetchArchived(archiveTab);
+    }
+  }, [activeTab, archiveTab, user?.role]);
+
   // ======================== ACCOUNTS MANAGEMENT ========================
   const fetchAccounts = (f = accountsFilter) => {
     setAccountsLoading(true);
@@ -509,30 +580,129 @@ export default function AccountSettings() {
     return `${browser} on ${device}`;
   };
 
+  // Archive restore handler
+  const handleRestoreArchived = async (id) => {
+    const confirmed = await confirmArchive({
+      title: 'Restore Item',
+      message: 'Are you sure you want to restore this item? It will be moved back to active status.',
+      confirmText: 'Restore',
+      cancelText: 'Cancel',
+    });
+    
+    if (!confirmed) return;
+
+    setArchiveActionLoading(true);
+    try {
+      let endpoint = '';
+      if (user?.role === 'admin') {
+        switch (archiveTab) {
+          case 'owners':
+            endpoint = `/admin/archived/owners/${id}`;
+            break;
+          case 'equipment':
+            endpoint = `/admin/archived/equipment/${id}`;
+            break;
+          case 'rentals':
+            endpoint = `/admin/archived/rentals/${id}`;
+            break;
+          case 'payments':
+            endpoint = `/admin/archived/payments/${id}`;
+            break;
+        }
+      } else if (user?.role === 'owner') {
+        if (archiveTab === 'equipment') {
+          endpoint = `/owner/archived/equipment/${id}`;
+        } else {
+          endpoint = `/owner/archived/rentals/${id}`;
+        }
+      } else if (user?.role === 'renter') {
+        endpoint = `/renter/archived/rentals/${id}`;
+      }
+
+      await api.patch(endpoint);
+      toast.success('Item restored successfully.');
+      fetchArchived();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to restore item.');
+    } finally {
+      setArchiveActionLoading(false);
+    }
+  };
+
+  // Archive delete handler
+  const handleDeleteArchived = async (id) => {
+    const confirmed = await confirmArchive({
+      title: 'Permanently Delete Item',
+      message: '⚠️ PERMANENTLY DELETE this item? This action CANNOT be undone!',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      danger: true
+    });
+    
+    if (!confirmed) return;
+
+    setArchiveActionLoading(true);
+    try {
+      let endpoint = '';
+      if (user?.role === 'admin') {
+        switch (archiveTab) {
+          case 'owners':
+            endpoint = `/admin/archived/owners/${id}`;
+            break;
+          case 'equipment':
+            endpoint = `/admin/archived/equipment/${id}`;
+            break;
+          case 'rentals':
+            endpoint = `/admin/archived/rentals/${id}`;
+            break;
+          case 'payments':
+            endpoint = `/admin/archived/payments/${id}`;
+            break;
+        }
+      } else if (user?.role === 'owner') {
+        if (archiveTab === 'equipment') {
+          endpoint = `/owner/archived/equipment/${id}`;
+        } else {
+          endpoint = `/owner/archived/rentals/${id}`;
+        }
+      } else if (user?.role === 'renter') {
+        endpoint = `/renter/archived/rentals/${id}`;
+      }
+
+      await api.delete(endpoint);
+      toast.success('Item deleted permanently.');
+      fetchArchived();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete item.');
+    } finally {
+      setArchiveActionLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Settings className="w-7 h-7 text-green-600 dark:text-green-400" />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <Settings className="w-6 h-6 sm:w-7 sm:h-7 text-green-600 dark:text-green-400" />
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
         {visibleTabs.map(([key, tab]) => {
           const Icon = tab.icon;
           return (
             <button
               key={key}
               onClick={() => handleTabChange(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
                 activeTab === key
                   ? 'bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
+              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="whitespace-nowrap text-xs sm:text-sm">{tab.label}</span>
             </button>
           );
         })}
@@ -1565,6 +1735,229 @@ export default function AccountSettings() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Archive Tab (all roles) */}
+      {activeTab === 'archive' && (
+        <div className="max-w-7xl">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 transition-colors p-6">
+            {/* Archive Tabs - Role-based */}
+            <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex gap-4 flex-wrap">
+                {user?.role === 'admin' && [
+                  { id: 'owners', label: 'Owners', icon: <Users className="w-4 h-4" /> },
+                  { id: 'equipment', label: 'Equipment', icon: <Tractor className="w-4 h-4" /> },
+                  { id: 'rentals', label: 'Rentals', icon: <ClipboardList className="w-4 h-4" /> },
+                  { id: 'payments', label: 'Payments', icon: <Banknote className="w-4 h-4" /> },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setArchiveTab(tab.id)}
+                    className={`px-3 py-2 sm:px-4 border-b-2 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm ${
+                      archiveTab === tab.id
+                        ? 'border-amber-600 text-amber-600 dark:text-amber-400'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    {archiveData.length > 0 && archiveTab === tab.id && (
+                      <span className="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                        {archiveData.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+
+                {user?.role === 'owner' && [
+                  { id: 'equipment', label: 'Equipment', icon: <Tractor className="w-4 h-4" /> },
+                  { id: 'rentals', label: 'Rentals', icon: <ClipboardList className="w-4 h-4" /> },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setArchiveTab(tab.id)}
+                    className={`px-3 py-2 sm:px-4 border-b-2 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm ${
+                      archiveTab === tab.id
+                        ? 'border-amber-600 text-amber-600 dark:text-amber-400'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    {archiveData.length > 0 && archiveTab === tab.id && (
+                      <span className="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                        {archiveData.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+
+                {user?.role === 'renter' && (
+                  <button
+                    className="px-3 py-2 sm:px-4 border-b-2 border-amber-600 text-amber-600 dark:text-amber-400 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    My Archived Rentals
+                    {archiveData.length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                        {archiveData.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Warning message */}
+            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                <p className="font-medium mb-1">Important Notice</p>
+                <p>
+                  Items in the archive can be <span className="font-semibold">restored</span> to their original state or{' '}
+                  <span className="font-semibold text-red-600">permanently deleted</span>. Permanent deletion cannot be undone!
+                </p>
+              </div>
+            </div>
+
+            {/* Table */}
+            {archiveLoading ? (
+              <TableSkeleton rows={8} cols={6} />
+            ) : archiveData.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <Archive className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400">No archived {archiveTab} found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {user?.role === 'admin' && archiveTab === 'owners' ? 'Owner' : 
+                         archiveTab === 'equipment' ? 'Equipment' : 
+                         archiveTab === 'rentals' ? 'Rental' : 
+                         'Item'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {archiveTab === 'payments' ? 'Amount' : 'Status'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Archived On
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {archiveData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-4 py-3">
+                          {/* Render item details based on type */}
+                          {archiveTab === 'owners' && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-700 dark:text-green-400 font-bold text-sm">
+                                {item.name?.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{item.email}</p>
+                              </div>
+                            </div>
+                          )}
+                          {archiveTab === 'equipment' && (
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{item.category}</p>
+                            </div>
+                          )}
+                          {archiveTab === 'rentals' && (
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {item.equipment?.name || 'Unknown Equipment'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {user?.role === 'admin' ? `Renter: ${item.renter?.name || '—'}` : `ID: #${item.id}`}
+                              </p>
+                            </div>
+                          )}
+                          {archiveTab === 'payments' && (
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                Rental #{item.rental_id}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                                {item.payment_method === 'gcash' ? 'GCash' : 'COD'}
+                              </p>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {archiveTab === 'payments' ? (
+                            <span className="font-medium text-green-700 dark:text-green-400">
+                              ₱{parseFloat(item.total_amount || 0).toLocaleString()}
+                            </span>
+                          ) : (
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              item.status === 'approved' || item.status === 'available' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              item.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                              item.status === 'forwarded' || item.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                              'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                            }`}>
+                              {item.status || '—'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          {item.archived_at ? new Date(item.archived_at).toLocaleDateString('en-PH', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          }) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <Tooltip text="Restore">
+                              <button
+                                onClick={() => handleRestoreArchived(item.id)}
+                                className="p-1.5 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-lg transition-colors"
+                                title="Restore"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Delete Permanently">
+                              <button
+                                onClick={() => handleDeleteArchived(item.id)}
+                                className="p-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors"
+                                title="Delete Permanently"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Confirm Modal for Archive */}
+          <ConfirmModal
+            isOpen={isArchiveConfirmOpen}
+            onClose={handleArchiveClose}
+            onConfirm={handleArchiveConfirm}
+            title={archiveConfig.title}
+            message={archiveConfig.message}
+            confirmText={archiveConfig.confirmText}
+            cancelText={archiveConfig.cancelText}
+            danger={archiveConfig.danger}
+          />
         </div>
       )}
     </div>

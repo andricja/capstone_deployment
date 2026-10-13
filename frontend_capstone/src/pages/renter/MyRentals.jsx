@@ -116,41 +116,43 @@ export default function MyRentals() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Rentals</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">My Rentals</h1>
         <button
           onClick={() => { setViewMode(viewMode === 'card' ? 'table' : 'card'); setPage(1); }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
         >
           {viewMode === 'card' ? <><Table className="w-4 h-4" /> Table View</> : <><LayoutGrid className="w-4 h-4" /> Card View</>}
         </button>
       </div>
 
       {/* Status filter buttons */}
-      <div className="flex items-center gap-2 mb-6">
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'pending_payment', label: 'Pending Payment' },
-          { key: 'forwarded', label: 'Pending' },
-          { key: 'approved', label: 'Approved' },
-          { key: 'rejected', label: 'Rejected' },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => { setStatusFilter(f.key); setPage(1); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              statusFilter === f.key
-                ? f.key === 'approved' ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
-                  : f.key === 'rejected' ? 'bg-red-500 text-white shadow-sm'
-                  : f.key === 'forwarded' ? 'bg-blue-600 text-white shadow-sm'
-                  : f.key === 'pending_payment' ? 'bg-yellow-600 text-white shadow-sm'
-                  : 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'pending_payment', label: 'Pending Payment' },
+            { key: 'forwarded', label: 'Pending' },
+            { key: 'approved', label: 'Approved' },
+            { key: 'rejected', label: 'Rejected' },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => { setStatusFilter(f.key); setPage(1); }}
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
+                statusFilter === f.key
+                  ? f.key === 'approved' ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
+                    : f.key === 'rejected' ? 'bg-red-500 text-white shadow-sm'
+                    : f.key === 'forwarded' ? 'bg-blue-600 text-white shadow-sm'
+                    : f.key === 'pending_payment' ? 'bg-yellow-600 text-white shadow-sm'
+                    : 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {allData.length === 0 ? (

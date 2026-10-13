@@ -70,13 +70,13 @@ export default function RenterDashboard() {
       {/* ═══════════ CHARTS ═══════════ */}
 
       {/* Period Filter */}
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-sm font-medium text-gray-500 dark:text-gray-400 mr-2">Period:</span>
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mr-1 sm:mr-2">Period:</span>
         {['today', 'weekly', 'monthly', 'yearly'].map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium capitalize transition-all flex-shrink-0 ${
               period === p
                 ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-sm'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'

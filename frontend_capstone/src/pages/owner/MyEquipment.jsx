@@ -499,54 +499,54 @@ export default function MyEquipment() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Equipment & Rentals</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your equipment, rental requests, and schedule</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">My Equipment & Rentals</h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your equipment, rental requests, and schedule</p>
         </div>
         {activeMainTab === 'equipment' && (
-          <button onClick={openAdd} className="bg-gradient-to-r from-green-600 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-600 flex items-center gap-1">
-            <Plus /> Add Equipment
+          <button onClick={openAdd} className="bg-gradient-to-r from-green-600 to-emerald-500 text-white px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium hover:from-green-700 hover:to-emerald-600 flex items-center gap-1 justify-center sm:justify-start flex-shrink-0">
+            <Plus className="w-4 h-4" /> Add Equipment
           </button>
         )}
       </div>
 
       {/* Main Tabs */}
-      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-4">
+      <div className="mb-4 sm:mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2 sm:gap-4 min-w-max sm:min-w-0">
           <button
             onClick={() => setActiveMainTab('equipment')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 py-2 sm:px-4 border-b-2 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm flex-shrink-0 ${
               activeMainTab === 'equipment'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <Package className="w-4 h-4" />
-            My Equipment
+            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="whitespace-nowrap">My Equipment</span>
           </button>
           <button
             onClick={() => setActiveMainTab('rentals')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 py-2 sm:px-4 border-b-2 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm flex-shrink-0 ${
               activeMainTab === 'rentals'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <ClipboardList className="w-4 h-4" />
-            Rental Requests
+            <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="whitespace-nowrap">Rental Requests</span>
             <TabBadge count={newRentalsCount} active={activeMainTab === 'rentals'} />
           </button>
           <button
             onClick={() => setActiveMainTab('calendar')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 py-2 sm:px-4 border-b-2 font-medium transition-colors flex items-center gap-2 text-xs sm:text-sm flex-shrink-0 ${
               activeMainTab === 'calendar'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <CalendarDays className="w-4 h-4" />
-            Calendar
+            <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="whitespace-nowrap">Calendar</span>
           </button>
         </div>
       </div>
