@@ -23,12 +23,20 @@ jobs:
         script: |
           echo "🚀 Starting deployment..."
           
-          # Navigate to project directory
+          # Navigate to project root
           cd ~/domains/ferms.net/public_html
           
+          # Force pull latest code from root (for .github/workflows updates)
+          echo "📥 Pulling latest code from GitHub (root)..."
+          git fetch --all
+          git reset --hard origin/master
+          git pull origin master
+          
           # Pull latest code from capstone_backend
-          echo "📥 Pulling latest code from GitHub..."
+          echo "📥 Pulling latest code from GitHub (backend)..."
           cd capstone_backend
+          git fetch --all
+          git reset --hard origin/master
           git pull origin master
           cd ..
           

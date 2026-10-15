@@ -1,0 +1,49 @@
+name: Force Seed SMTP Settings
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Seed SMTP Settings on Production
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          echo "🔄 Force updating and seeding production..."
+          
+          # Update root folder
+          cd ~/domains/ferms.net/public_html
+          echo "📥 Pulling root folder..."
+          git fetch --all
+          git reset --hard origin/master
+          git pull origin master
+          
+          # Update backend folder
+          cd capstone_backend
+          echo "📥 Pulling backend folder..."
+          git fetch --all
+          git reset --hard origin/master
+          git pull origin master
+          
+          # Update composer
+          echo "🔄 Updating composer autoload..."
+          composer dump-autoload
+          
+          # Seed SMTP
+          echo "📊 Seeding SMTP settings..."
+          php artisan db:seed --class=SmtpSettingSeeder --force
+          
+          # Verify
+          echo ""
+          echo "✅ Checking if SMTP settings exist..."
+          php artisan tinker --execute="echo SmtpSetting::first() ? '✅ SMTP configured successfully!' : '❌ SMTP not found'; echo PHP_EOL;"
+          
+          echo ""
+          echo "✅ Force seed completed!"

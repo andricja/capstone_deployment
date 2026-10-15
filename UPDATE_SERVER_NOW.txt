@@ -1,0 +1,58 @@
+================================================================================
+  FORCE UPDATE PRODUCTION SERVER - COPY & PASTE THESE COMMANDS
+================================================================================
+
+SSH to your server and run:
+
+cd ~/domains/ferms.net/public_html/capstone_backend && git fetch --all && git reset --hard origin/master && git pull origin master && composer dump-autoload && php artisan db:seed --class=SmtpSettingSeeder --force
+
+
+Or step by step:
+
+1. SSH to server:
+   ssh your-server
+
+2. Navigate:
+   cd ~/domains/ferms.net/public_html/capstone_backend
+
+3. Force pull latest code:
+   git fetch --all
+   git reset --hard origin/master
+   git pull origin master
+
+4. Update autoload:
+   composer dump-autoload
+
+5. Seed SMTP:
+   php artisan db:seed --class=SmtpSettingSeeder --force
+
+
+Expected output:
+✅ SMTP settings seeded successfully!
+
+
+Verify:
+php artisan tinker
+\App\Models\SmtpSetting::first()
+exit
+
+
+================================================================================
+  WHY THIS IS NEEDED
+================================================================================
+
+Your GitHub has the new SmtpSettingSeeder.php file, but your server still has
+the old files. The git reset --hard forces the server to match GitHub exactly.
+
+
+================================================================================
+  AFTER THIS
+================================================================================
+
+Next deployment will work automatically. Just push to GitHub:
+git push origin master
+
+No more manual steps needed!
+
+
+================================================================================

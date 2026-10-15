@@ -1,0 +1,73 @@
+================================================================================
+  UPDATE ROOT FOLDER FIRST, THEN BACKEND - COPY & PASTE
+================================================================================
+
+SSH to your server and run these commands:
+
+
+STEP 1: Update ROOT folder (~/domains/ferms.net/public_html)
+-------------------------------------------------------------
+
+cd ~/domains/ferms.net/public_html
+git fetch --all
+git reset --hard origin/master
+git pull origin master
+
+
+STEP 2: Update BACKEND folder (capstone_backend)
+-------------------------------------------------------------
+
+cd capstone_backend
+git fetch --all
+git reset --hard origin/master
+git pull origin master
+
+
+STEP 3: Update composer and seed
+-------------------------------------------------------------
+
+composer dump-autoload
+php artisan db:seed --class=SmtpSettingSeeder --force
+
+
+STEP 4: Verify
+-------------------------------------------------------------
+
+php artisan tinker
+\App\Models\SmtpSetting::first()
+exit
+
+
+================================================================================
+  ONE-LINE VERSION (Copy & Paste Everything)
+================================================================================
+
+cd ~/domains/ferms.net/public_html && git fetch --all && git reset --hard origin/master && git pull origin master && cd capstone_backend && git fetch --all && git reset --hard origin/master && git pull origin master && composer dump-autoload && php artisan db:seed --class=SmtpSettingSeeder --force
+
+
+================================================================================
+  WHAT THIS DOES
+================================================================================
+
+1. Updates root folder (where .github/workflows is)
+2. Updates backend folder (where seeders are)
+3. Reloads composer classes
+4. Seeds SMTP settings
+
+
+Expected output:
+✅ SMTP settings seeded successfully!
+
+
+================================================================================
+  CHECK FILES AFTER UPDATE
+================================================================================
+
+# Check root workflow file
+cat ~/domains/ferms.net/public_html/.github/workflows/deploy.yml | grep SmtpSettingSeeder
+
+# Check backend seeder file
+cat ~/domains/ferms.net/public_html/capstone_backend/database/seeders/SmtpSettingSeeder.php | head -20
+
+
+================================================================================
