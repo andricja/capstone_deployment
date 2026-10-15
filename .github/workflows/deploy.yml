@@ -41,6 +41,7 @@ jobs:
           
           # Run migrations
           php artisan migrate --force
+          php artisan db:seed
           
           # Clear and cache config
           php artisan config:clear

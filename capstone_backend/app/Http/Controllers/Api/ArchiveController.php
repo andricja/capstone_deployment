@@ -541,17 +541,9 @@ class ArchiveController extends Controller
      */
     public function adminArchivedPayments(): JsonResponse
     {
-        // Assuming you have a Payment model with archived_at column
-        // If not, this can return empty array or handle differently
-        try {
-            $payments = \App\Models\Payment::with('rental.equipment')
-                ->whereNotNull('archived_at')
-                ->latest('archived_at')
-                ->get();
-            return response()->json($payments);
-        } catch (\Exception $e) {
-            return response()->json([]);
-        }
+        // Payment model doesn't exist yet, return empty array
+        // TODO: Create Payment model if payment archiving is needed
+        return response()->json([]);
     }
 
     /* ================================================================== */
@@ -621,22 +613,10 @@ class ArchiveController extends Controller
      */
     public function bulkRestorePayments(Request $request): JsonResponse
     {
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer'
-        ]);
-
-        try {
-            \App\Models\Payment::whereIn('id', $request->ids)
-                ->whereNotNull('archived_at')
-                ->update(['archived_at' => null]);
-
-            return response()->json([
-                'message' => count($request->ids) . ' payment(s) restored successfully.'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Feature not available'], 404);
-        }
+        // Payment model doesn't exist yet
+        return response()->json([
+            'message' => 'Payment archiving feature not available yet.'
+        ], 404);
     }
 
     /* ================================================================== */
@@ -706,22 +686,10 @@ class ArchiveController extends Controller
      */
     public function bulkDeletePayments(Request $request): JsonResponse
     {
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer'
-        ]);
-
-        try {
-            \App\Models\Payment::whereIn('id', $request->ids)
-                ->whereNotNull('archived_at')
-                ->delete();
-
-            return response()->json([
-                'message' => count($request->ids) . ' payment(s) permanently deleted.'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Feature not available'], 404);
-        }
+        // Payment model doesn't exist yet
+        return response()->json([
+            'message' => 'Payment archiving feature not available yet.'
+        ], 404);
     }
 
     /* ================================================================== */
@@ -772,14 +740,9 @@ class ArchiveController extends Controller
      */
     public function restorePayment(int $id): JsonResponse
     {
-        try {
-            $payment = \App\Models\Payment::whereNotNull('archived_at')->findOrFail($id);
-            $payment->archived_at = null;
-            $payment->save();
-
-            return response()->json(['message' => 'Payment restored successfully.']);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Feature not available'], 404);
-        }
+        // Payment model doesn't exist yet
+        return response()->json([
+            'message' => 'Payment archiving feature not available yet.'
+        ], 404);
     }
 }

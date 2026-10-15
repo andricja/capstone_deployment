@@ -1,0 +1,42 @@
+=================================================================
+🚀 QUICK FIX FOR PRODUCTION ARCHIVE ERROR
+=================================================================
+
+COPY AND PASTE THIS INTO YOUR SSH SESSION:
+-----------------------------------------------------------------
+
+cd /var/www/capstone_backend && git pull origin main && php artisan cache:clear && php artisan config:clear && php artisan route:clear && php artisan view:clear && php artisan optimize:clear && php artisan route:cache && php artisan config:cache && chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache && systemctl restart php8.2-fpm && systemctl restart nginx && echo "✅ Fix complete! Test at https://ferms.net/admin/settings"
+
+-----------------------------------------------------------------
+
+OR if you prefer step-by-step:
+-----------------------------------------------------------------
+
+ssh root@ferms.net
+cd /var/www/capstone_backend
+git pull origin main
+php artisan cache:clear
+php artisan config:clear  
+php artisan route:clear
+php artisan view:clear
+php artisan optimize:clear
+php artisan route:cache
+php artisan config:cache
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+systemctl restart php8.2-fpm
+systemctl restart nginx
+
+-----------------------------------------------------------------
+
+VERIFY IT WORKED:
+-----------------------------------------------------------------
+
+php artisan route:list | grep archived
+
+(Should show multiple archived routes)
+
+Then test: https://ferms.net/admin/settings
+Click Archive tab - should work without 404 errors!
+
+=================================================================
