@@ -42,8 +42,8 @@ jobs:
           # Run migrations
           php artisan migrate --force
           
-          # Run production-safe seeder (only creates data if missing)
-          php artisan db:seed --class=ProductionSeeder --force
+          # Seed SMTP settings only (safe, won't delete anything)
+          php artisan db:seed --class=SmtpSettingSeeder --force
           
           # Clear and cache config
           php artisan config:clear
