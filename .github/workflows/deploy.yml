@@ -41,7 +41,9 @@ jobs:
           
           # Run migrations
           php artisan migrate --force
-          php artisan db:seed
+          
+          # Run production-safe seeder (only creates data if missing)
+          php artisan db:seed --class=ProductionSeeder --force
           
           # Clear and cache config
           php artisan config:clear
