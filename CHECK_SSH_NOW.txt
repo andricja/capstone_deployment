@@ -1,0 +1,73 @@
+================================================================================
+  COPY & PASTE THESE COMMANDS IN YOUR SSH TERMINAL
+================================================================================
+
+Check if SmtpSettingSeeder.php exists:
+--------------------------------------
+
+ls -la ~/domains/ferms.net/public_html/capstone_backend/database/seeders/SmtpSettingSeeder.php
+
+
+View the file contents:
+--------------------------------------
+
+cat ~/domains/ferms.net/public_html/capstone_backend/database/seeders/SmtpSettingSeeder.php
+
+
+Check deploy.yml for SmtpSettingSeeder:
+--------------------------------------
+
+grep "SmtpSettingSeeder" ~/domains/ferms.net/public_html/.github/workflows/deploy.yml
+
+
+Check git commit (root):
+--------------------------------------
+
+cd ~/domains/ferms.net/public_html && git log -1 --oneline
+
+
+Check git commit (backend):
+--------------------------------------
+
+cd ~/domains/ferms.net/public_html/capstone_backend && git log -1 --oneline
+
+
+Check if SMTP is in database:
+--------------------------------------
+
+cd ~/domains/ferms.net/public_html/capstone_backend && php artisan tinker --execute="echo SmtpSetting::count() . ' SMTP records'; echo PHP_EOL;"
+
+
+================================================================================
+  WHAT TO LOOK FOR
+================================================================================
+
+SmtpSettingSeeder.php should show:
+  - File with SMTP settings (smtp.gmail.com, port 587, etc.)
+
+deploy.yml should show:
+  - Line with: php artisan db:seed --class=SmtpSettingSeeder --force
+
+Git log should show:
+  - Recent commits from today
+
+SMTP count should show:
+  - "1 SMTP records" if seeded
+  - "0 SMTP records" if not seeded yet
+
+
+================================================================================
+  IF FILES ARE MISSING
+================================================================================
+
+Run this to pull latest code:
+
+cd ~/domains/ferms.net/public_html && git fetch --all && git reset --hard origin/master && git pull origin master && cd capstone_backend && git fetch --all && git reset --hard origin/master && git pull origin master
+
+
+Then seed:
+
+cd ~/domains/ferms.net/public_html/capstone_backend && composer dump-autoload && php artisan db:seed --class=SmtpSettingSeeder --force
+
+
+================================================================================

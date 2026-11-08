@@ -34,7 +34,9 @@ class Equipment extends Model
         'image',
         'status',
         'approval_fee',
+        'validity_period_years',
         'approved_at',
+        'approval_expires_at',
         'archived_at',
     ];
 
@@ -51,6 +53,7 @@ class Equipment extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'approved_at' => 'datetime',
+            'approval_expires_at' => 'datetime',
             'archived_at' => 'datetime',
         ];
     }
@@ -77,6 +80,27 @@ class Equipment extends Model
     public function isPending(): bool
     {
         return $this->status === 'pending';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Validity helpers                                                   */
+    /* ------------------------------------------------------------------ */
+
+    public function isExpired(): bool
+    {
+        return $this->approval_expires_at && now()->isAfter($this->approval_expires_at);
+    }
+
+    public function isExpiringSoon(int $days = 30): bool
+    {
+        if (!$this->approval_expires_at) return false;
+        return now()->diffInDays($this->approval_expires_at, false) <= $days && now()->isBefore($this->approval_expires_at);
+    }
+
+    public function daysUntilExpiry(): ?int
+    {
+        if (!$this->approval_expires_at) return null;
+        return now()->diffInDays($this->approval_expires_at, false);
     }
 
     /* ------------------------------------------------------------------ */

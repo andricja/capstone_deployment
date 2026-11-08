@@ -26,7 +26,7 @@ export default function AdminOwners() {
   const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState('owners'); // 'owners' | 'equipment'
+  const [activeTab, setActiveTab] = useState('owners'); // 'owners' | 'equipment' | 'expiration'
   
   // Owners tab state
   const [data, setData] = useState([]);
@@ -44,8 +44,14 @@ export default function AdminOwners() {
   const [equipmentLoading, setEquipmentLoading] = useState(false);
   const [approveItem, setApproveItem] = useState(null);
   const [approvalFee, setApprovalFee] = useState('');
+  const [validityPeriod, setValidityPeriod] = useState('');
   const [approving, setApproving] = useState(false);
   const [receipt, setReceipt] = useState(null);
+
+  // Equipment Expiration tab state
+  const [expirationData, setExpirationData] = useState([]);
+  const [expirationFilter, setExpirationFilter] = useState('all'); // 'all' | 'expiring' | 'expired'
+  const [expirationLoading, setExpirationLoading] = useState(false);
 
   // Track viewed items for notifications
   const ownerViewed = useViewedItems('viewed_admin_owners');
@@ -68,6 +74,8 @@ export default function AdminOwners() {
   useEffect(() => {
     if (activeTab === 'equipment') {
       fetchEquipment(equipmentFilter);
+    } else if (activeTab === 'expiration') {
+      fetchExpirationData();
     }
   }, [activeTab, equipmentFilter]);
 
@@ -97,22 +105,59 @@ export default function AdminOwners() {
       .finally(() => setEquipmentLoading(false));
   };
 
+  // ================ EQUIPMENT EXPIRATION FUNCTIONS ================
+  const fetchExpirationData = () => {
+    setExpirationLoading(true);
+    api.get('/admin/equipment/all', { params: { all: 1, status: 'available' } })
+      .then((r) => {
+        const allEquipment = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
+        // Show ALL approved equipment (with or without expiration)
+        setExpirationData(allEquipment);
+      })
+      .finally(() => setExpirationLoading(false));
+  };
+
+  const getFilteredExpirationData = () => {
+    const now = new Date();
+    return expirationData.filter(eq => {
+      // If no expiration date set
+      if (!eq.approval_expires_at) {
+        return expirationFilter === 'all'; // Only show in "All" filter
+      }
+      
+      const expiryDate = new Date(eq.approval_expires_at);
+      const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+      
+      if (expirationFilter === 'expiring') {
+        return daysUntilExpiry > 0 && daysUntilExpiry <= 30; // Expiring within 30 days
+      } else if (expirationFilter === 'expired') {
+        return daysUntilExpiry <= 0; // Already expired
+      } else {
+        return true; // All - show equipment with expiration
+      }
+    });
+  };
+
   const openApproveModal = (item, e) => {
     e?.stopPropagation();
     setApproveItem(item);
     setApprovalFee('');
+    setValidityPeriod('');
   };
 
   const confirmApprove = async () => {
     if (!approvalFee || parseFloat(approvalFee) < 0) return;
     setApproving(true);
     try {
-      const res = await api.patch(`/admin/equipment/${approveItem.id}/approve`, {
-        approval_fee: parseFloat(approvalFee),
-      });
+      const payload = { approval_fee: parseFloat(approvalFee) };
+      if (validityPeriod && parseInt(validityPeriod) > 0) {
+        payload.validity_period_years = parseInt(validityPeriod);
+      }
+      const res = await api.patch(`/admin/equipment/${approveItem.id}/approve`, payload);
       setReceipt(res.data.equipment);
       setApproveItem(null);
       setApprovalFee('');
+      setValidityPeriod('');
       toast.success('Equipment approved.');
       fetchEquipment(equipmentFilter);
     } catch (err) {
@@ -273,18 +318,19 @@ export default function AdminOwners() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-4">
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
+        <div className="flex gap-2 sm:gap-4 min-w-max sm:min-w-0">
           <button
             onClick={() => setActiveTab('owners')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative ${
+            className={`px-3 sm:px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative whitespace-nowrap text-sm sm:text-base ${
               activeTab === 'owners'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
             <Users className="w-4 h-4" />
-            Equipment Owners
+            <span className="hidden sm:inline">Equipment Owners</span>
+            <span className="sm:hidden">Owners</span>
             <TabBadge count={newOwnersCount} active={activeTab === 'owners'} />
             {/* Red dot indicator for pending owners - only show if NOT on this tab */}
             {showOwnerRedDot && (
@@ -296,14 +342,15 @@ export default function AdminOwners() {
           </button>
           <button
             onClick={() => setActiveTab('equipment')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative ${
+            className={`px-3 sm:px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative whitespace-nowrap text-sm sm:text-base ${
               activeTab === 'equipment'
                 ? 'border-green-600 text-green-600 dark:text-green-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
             <ListFilter className="w-4 h-4" />
-            Equipment Approvals
+            <span className="hidden sm:inline">Equipment Approvals</span>
+            <span className="sm:hidden">Approvals</span>
             <TabBadge count={newEquipmentCount} active={activeTab === 'equipment'} />
             {/* Red dot indicator for pending equipment - only show if NOT on this tab */}
             {showEquipmentRedDot && (
@@ -312,6 +359,18 @@ export default function AdminOwners() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('expiration')}
+            className={`px-3 sm:px-4 py-2 border-b-2 font-medium transition-colors flex items-center gap-2 relative whitespace-nowrap text-sm sm:text-base ${
+              activeTab === 'expiration'
+                ? 'border-green-600 text-green-600 dark:text-green-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span className="hidden sm:inline">Equipment Expiration</span>
+            <span className="sm:hidden">Expiration</span>
           </button>
         </div>
       </div>
@@ -821,7 +880,7 @@ export default function AdminOwners() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Fee (₱)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Fee (₱) <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
                       <input
@@ -835,6 +894,22 @@ export default function AdminOwners() {
                         autoFocus
                       />
                     </div>
+                  </div>
+
+                  {/* Equipment Validity Period input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Valid For (years)</label>
+                    <select
+                      value={validityPeriod}
+                      onChange={(e) => setValidityPeriod(e.target.value)}
+                      className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm dark:bg-gray-700 dark:text-gray-200"
+                    >
+                      <option value="">No expiration</option>
+                      {[1, 2, 3, 4, 5].map((year) => (
+                        <option key={year} value={year}>{year} {year === 1 ? 'year' : 'years'}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional: Set how long this approval is valid</p>
                   </div>
                 </div>
 
@@ -865,6 +940,123 @@ export default function AdminOwners() {
 
           {/* Receipt Modal */}
           <ReceiptModal equipment={receipt} onClose={() => setReceipt(null)} />
+        </>
+      )}
+
+      {/* Equipment Expiration Tab Content */}
+      {activeTab === 'expiration' && (
+        <>
+          {/* Filter tabs - Right aligned */}
+          <div className="flex items-center justify-end gap-2 mb-6 flex-wrap">
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              {[
+                { key: 'all', label: 'All Approved', shortLabel: 'All' },
+                { key: 'expiring', label: 'Expiring Soon (30 days)', shortLabel: 'Expiring' },
+                { key: 'expired', label: 'Expired' },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setExpirationFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                    expirationFilter === f.key
+                      ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <span className="hidden sm:inline">{f.label}</span>
+                  <span className="sm:hidden">{f.shortLabel || f.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {expirationLoading ? (
+            <TableSkeleton rows={5} cols={6} />
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'name',
+                  label: 'Equipment',
+                  render: (row) => (
+                    <div className="flex items-center gap-2">
+                      {row.image ? (
+                        <img src={`/storage/${row.image}`} alt={row.name} className="w-8 h-8 rounded object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm text-gray-300">🚜</div>
+                      )}
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{row.name}</p>
+                        <p className="text-xs text-gray-400 capitalize">{row.category}</p>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'owner.name',
+                  label: 'Owner',
+                  render: (row) => (
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{row.owner?.name ?? '—'}</p>
+                      <p className="text-xs text-gray-400">{row.owner?.email ?? ''}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'approved_at',
+                  label: 'Approved Date',
+                  render: (row) => row.approved_at ? new Date(row.approved_at).toLocaleDateString() : '—',
+                },
+                {
+                  key: 'validity_period_years',
+                  label: 'Validity Period',
+                  align: 'center',
+                  render: (row) => row.validity_period_years 
+                    ? `${row.validity_period_years} ${row.validity_period_years === 1 ? 'year' : 'years'}` 
+                    : <span className="text-gray-400 text-xs">No Expiration</span>,
+                },
+                {
+                  key: 'approval_expires_at',
+                  label: 'Expiry Date',
+                  render: (row) => {
+                    if (!row.approval_expires_at) return <span className="text-gray-400 text-xs">Never</span>;
+                    const expiryDate = new Date(row.approval_expires_at);
+                    const now = new Date();
+                    const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                    const isExpired = daysUntilExpiry <= 0;
+                    const isExpiringSoon = daysUntilExpiry > 0 && daysUntilExpiry <= 30;
+                    
+                    return (
+                      <div>
+                        <p className={`font-medium ${isExpired ? 'text-red-600 dark:text-red-400' : isExpiringSoon ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}>
+                          {expiryDate.toLocaleDateString()}
+                        </p>
+                        <p className={`text-xs ${isExpired ? 'text-red-500' : isExpiringSoon ? 'text-amber-500' : 'text-gray-500'}`}>
+                          {isExpired ? `Expired ${Math.abs(daysUntilExpiry)} days ago` : `${daysUntilExpiry} days remaining`}
+                        </p>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  align: 'center',
+                  render: (row) => <StatusBadge status={row.status} />,
+                },
+              ]}
+              data={getFilteredExpirationData()}
+              searchKeys={['name', 'category', 'owner.name', 'owner.email']}
+              defaultSort={{ key: 'approval_expires_at', dir: 'asc' }}
+              emptyMessage={
+                expirationFilter === 'all'
+                  ? 'No approved equipment found.'
+                  : expirationFilter === 'expiring' 
+                  ? 'No equipment expiring within 30 days.' 
+                  : 'No expired equipment.'
+              }
+            />
+          )}
         </>
       )}
 

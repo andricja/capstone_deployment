@@ -17,9 +17,18 @@ const FILTERS = [
   { key: 'approved', label: 'Approved', icon: <CheckCircle className="w-4 h-4" /> },
 ];
 
+const AGE_FILTERS = [
+  { key: 'all',      label: 'All Ages' },
+  { key: '1-3',      label: '1-3 Years' },
+  { key: '4-7',      label: '4-7 Years' },
+  { key: '8-15',     label: '8-15 Years' },
+  { key: '16+',      label: '16+ Years' },
+];
+
 export default function AdminEquipment() {
   const [data, setData] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [ageFilter, setAgeFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const { confirm, isOpen, config, handleConfirm, handleClose } = useConfirm();
@@ -27,6 +36,7 @@ export default function AdminEquipment() {
   // Approval modal state
   const [approveItem, setApproveItem] = useState(null);
   const [approvalFee, setApprovalFee] = useState('');
+  const [equipmentAge, setEquipmentAge] = useState('');
   const [approving, setApproving] = useState(false);
 
   // Receipt modal state
@@ -44,11 +54,35 @@ export default function AdminEquipment() {
 
   useEffect(() => { fetchEquipment(filter); }, [filter]);
 
+  /* Filter data by age range */
+  const filterDataByAge = (items) => {
+    if (filter !== 'approved' || ageFilter === 'all') return items;
+    
+    return items.filter(item => {
+      const age = item.equipment_age;
+      if (!age) return ageFilter === 'all'; // Show items without age only in 'all'
+      
+      switch (ageFilter) {
+        case '1-3':
+          return age >= 1 && age <= 3;
+        case '4-7':
+          return age >= 4 && age <= 7;
+        case '8-15':
+          return age >= 8 && age <= 15;
+        case '16+':
+          return age >= 16;
+        default:
+          return true;
+      }
+    });
+  };
+
   /* Open approval modal instead of instant approve */
   const openApproveModal = (item, e) => {
     e?.stopPropagation();
     setApproveItem(item);
     setApprovalFee('');
+    setEquipmentAge('');
   };
 
   /* Confirm approval with fee */
@@ -56,12 +90,15 @@ export default function AdminEquipment() {
     if (!approvalFee || parseFloat(approvalFee) < 0) return;
     setApproving(true);
     try {
-      const res = await api.patch(`/admin/equipment/${approveItem.id}/approve`, {
-        approval_fee: parseFloat(approvalFee),
-      });
+      const payload = { approval_fee: parseFloat(approvalFee) };
+      if (equipmentAge && parseInt(equipmentAge) > 0) {
+        payload.equipment_age = parseInt(equipmentAge);
+      }
+      const res = await api.patch(`/admin/equipment/${approveItem.id}/approve`, payload);
       setReceipt(res.data.equipment);
       setApproveItem(null);
       setApprovalFee('');
+      setEquipmentAge('');
       toast.success('Equipment approved.');
       fetchEquipment(filter);
     } catch (err) {
@@ -174,6 +211,16 @@ export default function AdminEquipment() {
       sortValue: (row) => parseFloat(row.transportation_fee),
     },
     {
+      key: 'equipment_age',
+      label: 'Age',
+      align: 'center',
+      render: (row) => 
+        row.equipment_age 
+          ? <span className="text-gray-600 dark:text-gray-400 text-sm">{row.equipment_age} {row.equipment_age === 1 ? 'year' : 'years'}</span>
+          : <span className="text-gray-300">—</span>,
+      sortValue: (row) => row.equipment_age || 0,
+    },
+    {
       key: 'created_at',
       label: 'Date',
       render: (row) => <span className="text-gray-500 dark:text-gray-400 text-xs">{new Date(row.created_at).toLocaleDateString()}</span>,
@@ -244,29 +291,53 @@ export default function AdminEquipment() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <ListFilter className="w-7 h-7 text-green-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Equipment Approvals</h1>
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <ListFilter className="w-7 h-7 text-green-600" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Equipment Approvals</h1>
+          </div>
+
+          {/* Status Filter tabs */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  filter === f.key
+                    ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {f.icon}
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                filter === f.key
-                  ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              {f.icon}
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {/* Age Filter tabs (only show for approved) */}
+        {filter === 'approved' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Filter by Age:</span>
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              {AGE_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setAgeFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    ageFilter === f.key
+                      ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -274,7 +345,7 @@ export default function AdminEquipment() {
       ) : (
         <DataTable
           columns={columns}
-          data={data}
+          data={filterDataByAge(data)}
           searchKeys={['name', 'category', 'location', 'owner.name', 'owner.email', 'status']}
           defaultSort={{ key: 'created_at', dir: 'desc' }}
           emptyMessage={filter === 'pending' ? 'No pending equipment to review.' : filter === 'approved' ? 'No approved equipment yet.' : 'No equipment found.'}
@@ -334,7 +405,7 @@ export default function AdminEquipment() {
 
               {/* Fee input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Fee (₱)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Approval Fee (₱) <span className="text-red-500">*</span> <span className="text-blue-500">[NEW VERSION]</span></label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
                   <input
@@ -348,6 +419,22 @@ export default function AdminEquipment() {
                     autoFocus
                   />
                 </div>
+              </div>
+
+              {/* Equipment Age input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Equipment Age (years) </label>
+                <select
+                  value={equipmentAge}
+                  onChange={(e) => setEquipmentAge(e.target.value)}
+                  className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm dark:bg-gray-700 dark:text-gray-200"
+                >
+                  <option value="">Select age (optional)</option>
+                  {Array.from({ length: 25 }, (_, i) => i + 1).map((year) => (
+                    <option key={year} value={year}>{year} {year === 1 ? 'year' : 'years'}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional: Specify how old the equipment is</p>
               </div>
             </div>
 

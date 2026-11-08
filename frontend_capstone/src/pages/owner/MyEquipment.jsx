@@ -252,6 +252,16 @@ export default function MyEquipment() {
 
   // Calculate tab counts and filter equipment
   const allEquipment = equipment?.data || [];
+  
+  // Count expiring equipment (within 30 days)
+  const now = new Date();
+  const expiringEquipment = allEquipment.filter(e => {
+    if (!e.approval_expires_at) return false;
+    const expiryDate = new Date(e.approval_expires_at);
+    const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+    return daysUntilExpiry > 0 && daysUntilExpiry <= 30;
+  });
+  
   const tabs = [
     { id: 'all', label: 'All Equipment', count: allEquipment.length, color: 'gray' },
     { id: 'available', label: 'Available', count: allEquipment.filter(e => e.status === 'available').length, color: 'green' },
@@ -259,11 +269,15 @@ export default function MyEquipment() {
     { id: 'maintenance', label: 'Maintenance', count: allEquipment.filter(e => e.status === 'maintenance').length, color: 'amber' },
     { id: 'pending', label: 'Pending', count: allEquipment.filter(e => e.status === 'pending').length, color: 'yellow' },
     { id: 'rejected', label: 'Rejected', count: allEquipment.filter(e => e.status === 'rejected').length, color: 'red' },
+    { id: 'expiring', label: 'Expiring Soon', count: expiringEquipment.length, color: 'orange' },
   ];
 
-  const filteredEquipment = (activeTab === 'all' 
-    ? allEquipment 
-    : allEquipment.filter(e => e.status === activeTab)
+  const filteredEquipment = (
+    activeTab === 'all' 
+      ? allEquipment 
+      : activeTab === 'expiring'
+      ? expiringEquipment
+      : allEquipment.filter(e => e.status === activeTab)
   ).filter(eq =>
     !equipmentSearchQuery || 
     eq.name.toLowerCase().includes(equipmentSearchQuery.toLowerCase()) ||
@@ -297,6 +311,10 @@ export default function MyEquipment() {
       rejected: {
         active: 'bg-red-600 text-white border-red-700',
         inactive: 'bg-white dark:bg-gray-800 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+      },
+      expiring: {
+        active: 'bg-orange-600 text-white border-orange-700',
+        inactive: 'bg-white dark:bg-gray-800 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20'
       }
     };
     return colors[tabId]?.[isActive ? 'active' : 'inactive'] || colors.all.inactive;
@@ -623,6 +641,29 @@ export default function MyEquipment() {
                         : `₱${(parseFloat(eq.price_per_hectare || 0)).toLocaleString()}/hectare`
                       }
                     </p>
+                    {/* Expiration Info */}
+                    {eq.approval_expires_at && (() => {
+                      const expiryDate = new Date(eq.approval_expires_at);
+                      const now = new Date();
+                      const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                      const isExpired = daysUntilExpiry <= 0;
+                      const isExpiringSoon = daysUntilExpiry > 0 && daysUntilExpiry <= 30;
+                      
+                      return (
+                        <p className={`text-xs font-medium mt-0.5 ${
+                          isExpired ? 'text-red-600 dark:text-red-400' : 
+                          isExpiringSoon ? 'text-orange-600 dark:text-orange-400' : 
+                          'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {isExpired 
+                            ? `⚠️ Expired ${Math.abs(daysUntilExpiry)} days ago` 
+                            : isExpiringSoon
+                            ? `⏰ Expires in ${daysUntilExpiry} days`
+                            : `Valid until ${expiryDate.toLocaleDateString()}`
+                          }
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">

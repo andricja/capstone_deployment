@@ -272,16 +272,23 @@ class EquipmentController extends Controller
 
         $request->validate([
             'approval_fee' => ['required', 'numeric', 'min:0'],
+            'validity_period_years' => ['nullable', 'integer', 'min:1', 'max:10'],
         ]);
+
+        $validityYears = $request->input('validity_period_years');
+        $approvalExpiresAt = $validityYears ? now()->addYears($validityYears) : null;
 
         $equipment->update([
             'status'       => 'available',
             'approval_fee' => $request->input('approval_fee'),
+            'validity_period_years' => $validityYears,
             'approved_at'  => now(),
+            'approval_expires_at' => $approvalExpiresAt,
         ]);
 
         // Log equipment approval
-        AuditService::logApprove($equipment, "Approved equipment: {$equipment->name} (Fee: ₱{$request->input('approval_fee')})");
+        $validityInfo = $validityYears ? " (Valid for {$validityYears} " . ($validityYears == 1 ? 'year' : 'years') . ", expires: " . $approvalExpiresAt->format('M d, Y') . ")" : "";
+        AuditService::logApprove($equipment, "Approved equipment: {$equipment->name} (Fee: ₱{$request->input('approval_fee')}{$validityInfo})");
 
         // Send notification to owner about equipment approval
         try {

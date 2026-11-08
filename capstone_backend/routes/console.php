@@ -14,3 +14,10 @@ Schedule::command('rentals:auto-reject')
     ->hourly()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule auto-disabling of expired equipment approvals
+// Runs daily to check for equipment whose approval validity has expired
+Schedule::command('equipment:disable-expired')
+    ->daily()
+    ->withoutOverlapping()
+    ->runInBackground();
